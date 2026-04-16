@@ -356,6 +356,32 @@ def api_criar_participante():
         return jsonify({"erro": str(e)}), 409
 
 
+@app.route("/api/participante/<int:id_participante>", methods=["DELETE"])
+def api_excluir_participante(id_participante: int):
+    with _lock_sessao:
+        id_ativo = _sessao_atual["id_participante"]
+        sessao_ativa_mesmo_participante = (
+            _sessao_atual["ativa"]
+            and id_ativo is not None
+            and int(id_ativo) == id_participante
+        )
+
+    if sessao_ativa_mesmo_participante:
+        return jsonify({
+            "erro": "Pare a leitura/encerre a sessão ativa antes de excluir este participante."
+        }), 409
+
+    try:
+        # Garante que qualquer lote pendente seja persistido antes da exclusão.
+        banco.flush_final()
+        resumo = banco.excluir_participante_completo(id_participante)
+        if not resumo:
+            return jsonify({"erro": "Participante não encontrado."}), 404
+        return jsonify({"ok": True, **resumo})
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
 @app.route("/api/sessoes", methods=["GET"])
 def api_listar_sessoes():
     return jsonify(banco.listar_sessoes())

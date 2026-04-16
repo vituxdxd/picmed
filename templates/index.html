@@ -295,7 +295,7 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
     <div class="card-title">Participantes Cadastrados</div>
     <div style="overflow-x:auto;">
       <table class="tbl">
-        <thead><tr><th>Código</th><th>Ciclo</th><th>Idade</th><th>Sexo</th><th>Sessões</th><th>Cadastrado</th></tr></thead>
+        <thead><tr><th>Código</th><th>Ciclo</th><th>Idade</th><th>Sexo</th><th>Sessões</th><th>Cadastrado</th><th>Ações</th></tr></thead>
         <tbody id="tbParticipantes"></tbody>
       </table>
     </div>
@@ -837,6 +837,7 @@ async function carregarParticipantes() {
       <td><span class="badge badge-blue" style="padding:0.1rem 0.4rem;border-radius:20px;font-size:0.7rem;">${cicloLabel[p.ciclo]||p.ciclo}</span></td>
       <td>${p.idade||'—'}</td><td>${p.sexo}</td>
       <td>${p.total_sessoes}</td><td style="font-size:0.78rem;">${p.criado_em||'—'}</td>
+      <td><button class="btn btn-red btn-sm" onclick='excluirParticipante(${p.id}, ${JSON.stringify(p.codigo || "")})'>Apagar participante</button></td>
     </tr>`;
     selLeitura.innerHTML += `<option value="${p.id}">${p.codigo} (${cicloLabel[p.ciclo]||p.ciclo})</option>`;
   });
@@ -967,6 +968,7 @@ async function carregarSessoes() {
       <td>
         ${s.fim_em && !s.processada ? `<button class="btn btn-primary btn-sm" onclick="processarSessao(${s.id})">Processar</button>` : ''}
         ${s.processada ? `<button class="btn btn-outline btn-sm" onclick="verResultado(${s.id})">Ver</button>` : ''}
+        <button class="btn btn-red btn-sm" onclick='excluirParticipante(${s.id_participante}, ${JSON.stringify(s.codigo || "")})'>Apagar participante</button>
       </td>
     </tr>`;
   });
@@ -985,6 +987,35 @@ async function verResultado(id) {
   const r = await api(`/api/resultado/${id}`);
   if (r.erro) { toast(r.erro, 'err'); return; }
   mostrarResultado(r);
+}
+
+async function excluirParticipante(idParticipante, codigo='') {
+  if (!idParticipante) return;
+  const identificacao = codigo ? `participante ${codigo}` : `participante #${idParticipante}`;
+  const confirmado = window.confirm(
+    `Confirma apagar todos os dados de ${identificacao}?\n\n` +
+    'Esta ação remove sessões, ECG bruto, métricas e inventário de todo o banco e não pode ser desfeita.'
+  );
+  if (!confirmado) return;
+
+  try {
+    const r = await api(`/api/participante/${idParticipante}`, 'DELETE');
+    if (!r.ok) {
+      toast(r.erro || 'Falha ao apagar participante', 'err');
+      return;
+    }
+
+    document.getElementById('resultArea').style.display = 'none';
+    toast(`Participante ${r.codigo} removido (${r.total_sessoes} sessões apagadas)`);
+    await Promise.all([
+      carregarSessoes(),
+      carregarParticipantes(),
+      carregarStats(),
+      carregarSessoesForm(),
+    ]);
+  } catch (e) {
+    toast('Erro de comunicação ao apagar participante', 'err');
+  }
 }
 
 function mostrarResultado(r) {

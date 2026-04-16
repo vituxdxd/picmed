@@ -137,6 +137,64 @@ def listar_participantes() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def excluir_participante_completo(id_participante: int) -> Optional[dict]:
+    """
+    Remove participante e todos os dados relacionados (sessões, ECG bruto,
+    métricas e inventário). Retorna um resumo da remoção.
+    """
+    with _lock_escrita:
+        conn = _conectar()
+        participante = conn.execute(
+            "SELECT id, codigo FROM participantes WHERE id = ?",
+            (id_participante,),
+        ).fetchone()
+        if not participante:
+            conn.close()
+            return None
+
+        total_sessoes = conn.execute(
+            "SELECT COUNT(*) FROM sessoes WHERE id_participante = ?",
+            (id_participante,),
+        ).fetchone()[0]
+        total_amostras = conn.execute("""
+            SELECT COUNT(*)
+            FROM ecg_bruto
+            WHERE id_sessao IN (
+                SELECT id FROM sessoes WHERE id_participante = ?
+            )
+        """, (id_participante,)).fetchone()[0]
+
+        conn.execute("""
+            DELETE FROM inventario
+            WHERE id_sessao IN (
+                SELECT id FROM sessoes WHERE id_participante = ?
+            )
+        """, (id_participante,))
+        conn.execute("""
+            DELETE FROM metricas_vfc
+            WHERE id_sessao IN (
+                SELECT id FROM sessoes WHERE id_participante = ?
+            )
+        """, (id_participante,))
+        conn.execute("""
+            DELETE FROM ecg_bruto
+            WHERE id_sessao IN (
+                SELECT id FROM sessoes WHERE id_participante = ?
+            )
+        """, (id_participante,))
+        conn.execute("DELETE FROM sessoes WHERE id_participante = ?", (id_participante,))
+        conn.execute("DELETE FROM participantes WHERE id = ?", (id_participante,))
+        conn.commit()
+        conn.close()
+
+        return {
+            "id_participante": int(participante["id"]),
+            "codigo": participante["codigo"],
+            "total_sessoes": int(total_sessoes),
+            "total_amostras": int(total_amostras),
+        }
+
+
 # ─── Sessões ──────────────────────────────────────────────────────────────────
 def abrir_sessao(id_participante: int) -> int:
     """Cria uma nova sessão e retorna seu id."""
