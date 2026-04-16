@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PICMED UNICEPLAC — Sistema ECG/VFC</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700;800&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f8f9fb; --bg-card: #ffffff; --bg-hover: #f1f5f9;
+  --border: #e2e8f0; --border-light: #f1f5f9;
+  --text: #1e293b; --text-dim: #64748b; --text-mute: #94a3b8;
+  --primary: #2563eb; --primary-light: #dbeafe; --primary-dark: #1d4ed8;
+  --teal: #0d9488; --teal-light: #ccfbf1; --teal-dark: #0f766e;
+  --green: #16a34a; --green-light: #dcfce7;
+  --red: #dc2626; --red-light: #fee2e2;
+  --amber: #d97706; --amber-light: #fef3c7;
+  --purple: #7c3aed; --purple-light: #ede9fe;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.03);
+  --radius: 10px; --radius-sm: 6px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',system-ui,sans-serif; line-height:1.6; }
+
+/* Header */
+.header { background:#fff; border-bottom:1px solid var(--border); padding:0.8rem 1.5rem; display:flex; align-items:center; gap:1rem; position:sticky; top:0; z-index:100; }
+.logo { display:flex; align-items:center; gap:0.6rem; }
+.logo-icon { width:36px; height:36px; background:linear-gradient(135deg, var(--primary), var(--teal)); border-radius:8px; display:flex; align-items:center; justify-content:center; }
+.logo-icon svg { width:20px; height:20px; fill:#fff; }
+.logo-text { font-family:'Lora',serif; font-weight:700; font-size:1.05rem; color:var(--text); }
+.logo-sub { font-size:0.72rem; color:var(--text-mute); font-weight:400; }
+.header-right { margin-left:auto; display:flex; align-items:center; gap:1rem; }
+.led-indicator { display:flex; align-items:center; gap:0.4rem; font-size:0.78rem; color:var(--text-dim); font-weight:500; }
+.led-dot { width:10px; height:10px; border-radius:50%; background:#94a3b8; transition:all 0.3s; }
+.led-dot.blue { background:#3b82f6; box-shadow:0 0 8px rgba(59,130,246,0.5); }
+.led-dot.green { background:#16a34a; box-shadow:0 0 8px rgba(22,163,74,0.5); }
+.led-dot.green-blink { background:#16a34a; animation:blink 0.6s infinite; }
+.led-dot.red { background:#dc2626; box-shadow:0 0 8px rgba(220,38,38,0.5); }
+.led-dot.red-blink { background:#dc2626; animation:blink 0.8s infinite; }
+.led-dot.amber { background:#d97706; box-shadow:0 0 8px rgba(217,119,6,0.5); }
+.led-dot.blue-blink { background:#3b82f6; animation:blink 0.3s infinite; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+
+/* Tabs */
+.tabs { background:#fff; border-bottom:1px solid var(--border); padding:0 1.5rem; display:flex; gap:0; overflow-x:auto; }
+.tab { background:none; border:none; padding:0.75rem 1.2rem; font-family:'Source Sans 3',sans-serif; font-size:0.84rem; font-weight:600; color:var(--text-mute); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; white-space:nowrap; }
+.tab:hover { color:var(--text-dim); }
+.tab.on { color:var(--primary); border-bottom-color:var(--primary); }
+
+/* Layout */
+.main { max-width:1200px; margin:0 auto; padding:1.5rem; }
+.pan { display:none; } .pan.on { display:block; }
+
+/* Cards */
+.card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; margin-bottom:1rem; box-shadow:var(--shadow-sm); }
+.card-title { font-family:'Lora',serif; font-size:1rem; font-weight:600; margin-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem; }
+.card-title .badge { font-family:'Source Sans 3'; font-size:0.65rem; font-weight:600; padding:0.15rem 0.5rem; border-radius:20px; text-transform:uppercase; letter-spacing:0.5px; }
+
+/* Grid */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; }
+.grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:0.8rem; }
+@media(max-width:768px) { .grid-2,.grid-3,.grid-4 { grid-template-columns:1fr; } }
+
+/* Buttons */
+.btn { display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:var(--radius-sm); font-family:'Source Sans 3'; font-size:0.84rem; font-weight:600; cursor:pointer; border:1px solid transparent; transition:all 0.15s; }
+.btn-primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+.btn-primary:hover { background:var(--primary-dark); }
+.btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+.btn-teal { background:var(--teal); color:#fff; }
+.btn-teal:hover { background:var(--teal-dark); }
+.btn-red { background:var(--red); color:#fff; }
+.btn-red:hover { background:#b91c1c; }
+.btn-outline { background:transparent; color:var(--text-dim); border-color:var(--border); }
+.btn-outline:hover { background:var(--bg-hover); color:var(--text); }
+.btn-sm { padding:0.35rem 0.7rem; font-size:0.78rem; }
+
+/* Inputs */
+.form-group { margin-bottom:0.8rem; }
+.form-label { display:block; font-size:0.78rem; font-weight:600; color:var(--text-dim); margin-bottom:0.25rem; text-transform:uppercase; letter-spacing:0.3px; }
+.form-input, .form-select { width:100%; padding:0.5rem 0.75rem; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:'Source Sans 3'; font-size:0.88rem; color:var(--text); background:#fff; transition:border-color 0.15s; }
+.form-input:focus, .form-select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
+
+/* Table */
+.tbl { width:100%; border-collapse:collapse; font-size:0.84rem; }
+.tbl th { text-align:left; padding:0.6rem 0.75rem; background:var(--bg); color:var(--text-dim); font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); }
+.tbl td { padding:0.55rem 0.75rem; border-bottom:1px solid var(--border-light); color:var(--text-dim); }
+.tbl tr:hover td { background:var(--bg-hover); }
+
+/* Stat card */
+.stat { text-align:center; padding:1rem; }
+.stat-value { font-family:'Lora',serif; font-size:1.8rem; font-weight:700; color:var(--text); }
+.stat-label { font-size:0.72rem; color:var(--text-mute); text-transform:uppercase; letter-spacing:0.5px; margin-top:0.2rem; }
+
+/* Badges */
+.badge-green { background:var(--green-light); color:var(--green); }
+.badge-blue { background:var(--primary-light); color:var(--primary); }
+.badge-amber { background:var(--amber-light); color:var(--amber); }
+.badge-red { background:var(--red-light); color:var(--red); }
+.badge-purple { background:var(--purple-light); color:var(--purple); }
+.badge-gray { background:#f1f5f9; color:#64748b; }
+
+/* ECG Chart container */
+.ecg-wrap { background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:0.5rem; position:relative; height:280px; }
+.ecg-wrap canvas { width:100%!important; height:100%!important; }
+
+/* Toast */
+.toast { position:fixed; bottom:1.5rem; right:1.5rem; padding:0.7rem 1.2rem; border-radius:var(--radius-sm); font-size:0.84rem; font-weight:500; color:#fff; z-index:9999; transform:translateY(20px); opacity:0; transition:all 0.3s; pointer-events:none; }
+.toast.show { transform:translateY(0); opacity:1; }
+.toast-ok { background:var(--green); }
+.toast-err { background:var(--red); }
+
+/* Progress */
+.progress-bar { height:6px; background:var(--border-light); border-radius:3px; overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg, var(--primary), var(--teal)); border-radius:3px; transition:width 0.5s; }
+
+/* Alert */
+.alert { padding:0.75rem 1rem; border-radius:var(--radius-sm); font-size:0.84rem; margin-bottom:0.8rem; display:flex; align-items:flex-start; gap:0.5rem; }
+.alert-info { background:var(--primary-light); color:var(--primary-dark); }
+.alert-warn { background:var(--amber-light); color:#92400e; }
+
+/* PSS scale */
+.pss-row { display:grid; grid-template-columns:1fr auto; gap:0.5rem; align-items:center; padding:0.6rem 0; border-bottom:1px solid var(--border-light); }
+.pss-question { font-size:0.84rem; color:var(--text-dim); }
+.pss-options { display:flex; gap:0.25rem; }
+.pss-opt { width:32px; height:32px; border:1px solid var(--border); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:0.78rem; font-weight:600; color:var(--text-mute); background:#fff; transition:all 0.15s; }
+.pss-opt:hover { border-color:var(--primary); color:var(--primary); }
+.pss-opt.sel { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+/* Responsive */
+@media(max-width:768px) { .main{padding:1rem;} .header{padding:0.6rem 1rem;} }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M3.5 12h3.3l1.7-6 2.5 12 2-8 1.5 4H21"/></svg></div>
+    <div>
+      <div class="logo-text">PICMED UNICEPLAC</div>
+      <div class="logo-sub">Sistema de Coleta ECG/VFC — Estresse Oculto</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="led-indicator">
+      <div class="led-dot" id="ledDot"></div>
+      <span id="ledLabel">Desconectado</span>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab on" data-t="aquisicao">Aquisição</button>
+  <button class="tab" data-t="participantes">Participantes</button>
+  <button class="tab" data-t="coleta">Coleta &amp; Formulários</button>
+  <button class="tab" data-t="resultados">Resultados</button>
+  <button class="tab" data-t="debug">Debug Serial</button>
+</div>
+
+<div class="main">
+
+<!-- ═══════ ABA: AQUISIÇÃO ═══════ -->
+<div class="pan on" id="aquisicao">
+  <!-- Conexão -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="18" height="18" fill="none" stroke="var(--primary)" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2v6m0 0a3 3 0 106 0V2M6 8a3 3 0 006 0m6 6v6m0 0a3 3 0 01-6 0v-6m6 0a3 3 0 00-6 0"/></svg>
+      Conexão Serial
+    </div>
+    <div style="display:flex;gap:0.8rem;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="flex:1;min-width:200px;margin:0;">
+        <label class="form-label">Porta</label>
+        <select class="form-select" id="selPorta"><option value="">Selecione...</option></select>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="carregarPortas()" style="margin-bottom:1px;">↻ Atualizar</button>
+      <button class="btn btn-primary" id="btnConectar" onclick="toggleConexao()">Conectar</button>
+    </div>
+  </div>
+
+  <!-- Controle de Leitura + Progresso -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">
+        <svg width="18" height="18" fill="none" stroke="var(--teal)" stroke-width="2" viewBox="0 0 24 24"><path d="M4.5 12h15m-7.5-7.5v15"/></svg>
+        Controle de Leitura ECG
+      </div>
+      <div style="display:flex;gap:0.8rem;align-items:flex-end;flex-wrap:wrap;">
+        <div class="form-group" style="flex:1;min-width:160px;margin:0;">
+          <label class="form-label">Participante</label>
+          <select class="form-select" id="selParticipanteLeitura"><option value="">Sem participante (teste)</option></select>
+        </div>
+        <div class="form-group" style="width:110px;margin:0;">
+          <label class="form-label">Duração (seg)</label>
+          <input class="form-input" id="inpDuracao" type="number" min="10" max="600" value="300" style="text-align:center;">
+        </div>
+        <button class="btn btn-teal" id="btnLeitura" onclick="toggleLeitura()" disabled>▶ Iniciar Leitura</button>
+      </div>
+      <div style="margin-top:0.8rem;">
+        <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text-mute);margin-bottom:0.3rem;">
+          <span id="lblAmostras">0 amostras</span>
+          <span id="lblTempo" style="font-weight:600;color:var(--primary);">⏱ 05:00</span>
+          <span id="lblProgresso">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="barProgresso" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Status do Hardware</div>
+      <!-- BPM destaque -->
+      <div style="text-align:center;padding:0.4rem 0 0.6rem;border-bottom:1px solid var(--border-light);margin-bottom:0.5rem;">
+        <div style="font-family:'Lora',serif;font-size:2.4rem;font-weight:700;color:var(--red);" id="statBPM">—</div>
+        <div style="font-size:0.72rem;color:var(--text-mute);text-transform:uppercase;letter-spacing:0.5px;">BPM (tempo real)</div>
+      </div>
+      <div class="grid-2" style="gap:0.5rem;">
+        <div class="stat" style="padding:0.4rem;">
+          <div class="stat-value" id="statEstado" style="font-size:0.9rem;color:var(--primary);">—</div>
+          <div class="stat-label">Estado ESP32</div>
+        </div>
+        <div class="stat" style="padding:0.4rem;">
+          <div class="stat-value" id="statRaw" style="font-size:0.9rem;color:var(--teal);">0</div>
+          <div class="stat-label">Raw (250 Hz)</div>
+        </div>
+        <div class="stat" style="padding:0.4rem;">
+          <div class="stat-value" id="statPerdidas" style="font-size:0.9rem;color:var(--amber);">0</div>
+          <div class="stat-label">Perdidos</div>
+        </div>
+        <div class="stat" style="padding:0.4rem;">
+          <div class="stat-value" id="statPorta" style="font-size:0.8rem;color:var(--text-dim);">—</div>
+          <div class="stat-label">Porta</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ECG Chart -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:0.5rem;">
+      <svg width="18" height="18" fill="none" stroke="var(--red)" stroke-width="2" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      Monitor ECG em Tempo Real
+      <span class="badge badge-blue" style="margin-left:auto;">250 Hz</span>
+    </div>
+    <div class="ecg-wrap"><canvas id="ecgChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ═══════ ABA: PARTICIPANTES ═══════ -->
+<div class="pan" id="participantes">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Cadastrar Participante</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Código (anônimo)</label>
+          <input class="form-input" id="inpCodigo" placeholder="P001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ciclo Acadêmico</label>
+          <select class="form-select" id="selCiclo">
+            <option value="basico">Básico</option>
+            <option value="clinico">Clínico</option>
+            <option value="internato">Internato</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Idade</label>
+          <input class="form-input" id="inpIdade" type="number" min="18" max="60">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sexo</label>
+          <select class="form-select" id="selSexo">
+            <option value="M">Masculino</option>
+            <option value="F">Feminino</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="criarParticipante()" style="margin-top:0.5rem;">Cadastrar</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Estatísticas do Estudo</div>
+      <div class="grid-2" style="gap:0.5rem;">
+        <div class="stat"><div class="stat-value" id="stTotal">0</div><div class="stat-label">Participantes</div></div>
+        <div class="stat"><div class="stat-value" id="stSessoes">0</div><div class="stat-label">Sessões</div></div>
+        <div class="stat"><div class="stat-value" id="stProcessadas">0</div><div class="stat-label">Processadas</div></div>
+        <div class="stat"><div class="stat-value" id="stDB">0</div><div class="stat-label">Tamanho DB (MB)</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Participantes Cadastrados</div>
+    <div style="overflow-x:auto;">
+      <table class="tbl">
+        <thead><tr><th>Código</th><th>Ciclo</th><th>Idade</th><th>Sexo</th><th>Sessões</th><th>Cadastrado</th></tr></thead>
+        <tbody id="tbParticipantes"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ ABA: COLETA & FORMULÁRIOS ═══════ -->
+<div class="pan" id="coleta">
+  <div class="alert alert-info">
+    <strong>Fluxo:</strong> Selecione uma sessão encerrada abaixo, preencha o PSS-10 e o Inventário de Rotina, depois salve.
+  </div>
+
+  <div class="card">
+    <div class="card-title">Selecionar Sessão</div>
+    <select class="form-select" id="selSessaoForm" onchange="onSessaoSelecionada()">
+      <option value="">Selecione uma sessão...</option>
+    </select>
+  </div>
+
+  <div id="formArea" style="display:none;">
+    <!-- PSS-10 -->
+    <div class="card">
+      <div class="card-title">
+        Escala de Estresse Percebido (PSS-10)
+        <span class="badge badge-purple" style="margin-left:auto;">Score: <span id="pssScore">0</span>/40</span>
+      </div>
+      <p style="font-size:0.82rem;color:var(--text-mute);margin-bottom:0.8rem;">
+        No último mês, com que frequência você... (0 = Nunca, 1 = Quase nunca, 2 = Às vezes, 3 = Frequentemente, 4 = Muito frequentemente)
+      </p>
+      <div id="pssContainer"></div>
+    </div>
+
+    <!-- Inventário de Rotina -->
+    <div class="card">
+      <div class="card-title">Inventário de Rotina</div>
+      <div class="grid-3">
+        <div class="form-group">
+          <label class="form-label">Horas de sono (noite anterior)</label>
+          <input class="form-input" id="inpSono" type="number" step="0.5" min="0" max="24" placeholder="7.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cafeína nas últimas 4h (mg)</label>
+          <input class="form-input" id="inpCafeina" type="number" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Medicação</label>
+          <input class="form-input" id="inpMedicacao" placeholder="Nenhuma">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tabagismo</label>
+          <select class="form-select" id="selTabagismo"><option value="0">Não</option><option value="1">Sim</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Etilismo (últimas 24h)</label>
+          <select class="form-select" id="selEtilismo"><option value="0">Não</option><option value="1">Sim</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">IPAQ-S (Nível Atividade)</label>
+          <select class="form-select" id="selIPAQ">
+            <option value="sedentario">Sedentário</option>
+            <option value="insuficiente">Insuficientemente ativo</option>
+            <option value="ativo">Ativo</option>
+            <option value="muito_ativo">Muito ativo</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="salvarFormularios()" style="margin-top:0.5rem;">Salvar PSS-10 + Inventário</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ ABA: RESULTADOS ═══════ -->
+<div class="pan" id="resultados">
+  <div class="card">
+    <div class="card-title">Sessões Realizadas</div>
+    <div style="overflow-x:auto;">
+      <table class="tbl">
+        <thead><tr><th>ID</th><th>Participante</th><th>Ciclo</th><th>Início</th><th>Amostras</th><th>SI Baevsky</th><th>PSS-10</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="tbSessoes"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="resultArea" style="display:none;">
+    <div class="card">
+      <div class="card-title">
+        Resultado da Análise VFC
+        <span class="badge" id="badgeSI" style="margin-left:auto;">—</span>
+      </div>
+      <div class="grid-4">
+        <div class="stat"><div class="stat-value" id="rSI">—</div><div class="stat-label">SI Baevsky</div></div>
+        <div class="stat"><div class="stat-value" id="rFC">—</div><div class="stat-label">FC Média (bpm)</div></div>
+        <div class="stat"><div class="stat-value" id="rSDNN">—</div><div class="stat-label">SDNN (ms)</div></div>
+        <div class="stat"><div class="stat-value" id="rRMSSD">—</div><div class="stat-label">RMSSD (ms)</div></div>
+        <div class="stat"><div class="stat-value" id="rPNN50">—</div><div class="stat-label">pNN50 (%)</div></div>
+        <div class="stat"><div class="stat-value" id="rMo">—</div><div class="stat-label">Mo (ms)</div></div>
+        <div class="stat"><div class="stat-value" id="rAMo">—</div><div class="stat-label">AMo (%)</div></div>
+        <div class="stat"><div class="stat-value" id="rMxDMn">—</div><div class="stat-label">MxDMn (ms)</div></div>
+      </div>
+      <div id="descSI" style="margin-top:1rem;padding:0.8rem;border-radius:var(--radius-sm);font-size:0.84rem;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ ABA: DEBUG SERIAL ═══════ -->
+<div class="pan" id="debug">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">
+        Log Serial (últimos eventos)
+        <span style="margin-left:auto;display:flex;gap:0.4rem;">
+          <button class="btn btn-outline btn-sm" onclick="copiarDebug('debugLog')">📋 Copiar</button>
+          <button class="btn btn-outline btn-sm" onclick="carregarDebug()">↻ Atualizar</button>
+        </span>
+      </div>
+      <div id="debugLog" style="background:#1e293b;color:#94a3b8;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;padding:0.8rem;border-radius:6px;height:400px;overflow-y:auto;white-space:pre-wrap;line-height:1.6;"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        Dados ECG em Tempo Real (raw)
+        <span style="margin-left:auto;display:flex;gap:0.4rem;">
+          <button class="btn btn-outline btn-sm" onclick="copiarDebug('rawData')">📋 Copiar</button>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('rawData').textContent=''">🗑 Limpar</button>
+        </span>
+      </div>
+      <div id="rawData" style="background:#1e293b;color:#10b981;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;padding:0.8rem;border-radius:6px;height:400px;overflow-y:auto;white-space:pre-wrap;line-height:1.5;"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Diagnóstico Rápido</div>
+    <div class="grid-4" style="gap:0.6rem;">
+      <div class="stat"><div class="stat-value" id="dbgRaw" style="font-size:1.1rem;">0</div><div class="stat-label">Raw recebidas (250Hz)</div></div>
+      <div class="stat"><div class="stat-value" id="dbgDec" style="font-size:1.1rem;">0</div><div class="stat-label">Recebidas (total)</div></div>
+      <div class="stat"><div class="stat-value" id="dbgLost" style="font-size:1.1rem;color:var(--amber);">0</div><div class="stat-label">Pacotes perdidos</div></div>
+      <div class="stat"><div class="stat-value" id="dbgProto" style="font-size:0.9rem;">—</div><div class="stat-label">Protocolo detectado</div></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let conectado = false;
+let lendo = false;
+let evtSource = null;
+let ecgChart = null;
+let leituraInicio = null;
+let duracaoSeg = 300;       // [NOVO] duração configurável (padrão 5 min)
+const ECG_MAX_POINTS = 1250;
+const RAW_MAX_LINES = 100;
+const ECG_INVERTER_POLARIDADE = true; // true: multiplica por -1 no gráfico/BPM
+const BPM_USAR_NEUROKIT = true;       // usa endpoint backend com NeuroKit2
+
+// [NOVO] Buffer para cálculo de BPM em tempo real
+const bpmBuffer = [];        // últimos valores de tensão
+const BPM_WINDOW = 750;     // 3 segundos a 250 Hz
+let lastPeakIdx = -1;
+let bpmValue = null;
+let bpmReqEmAndamento = false;
+
+// ═══════════════════════════════════════════════════════════════
+// PSS-10 QUESTIONS
+// ═══════════════════════════════════════════════════════════════
+const PSS_QUESTIONS = [
+  "Ficou perturbado(a) por algo que aconteceu inesperadamente?",
+  "Sentiu-se incapaz de controlar as coisas importantes da sua vida?",
+  "Sentiu-se nervoso(a) e estressado(a)?",
+  "Sentiu-se confiante em sua capacidade de lidar com seus problemas pessoais?",
+  "Sentiu que as coisas estavam indo do seu jeito?",
+  "Concluiu que não conseguia dar conta de todas as coisas que tinha para fazer?",
+  "Conseguiu controlar irritações na sua vida?",
+  "Sentiu que estava com tudo sob controle?",
+  "Ficou irritado(a) por coisas que estavam fora do seu controle?",
+  "Sentiu que os problemas se acumularam tanto que não conseguia superá-los?",
+];
+const PSS_REVERSED = [3,4,6,7]; // 0-indexed: questions 4,5,7,8 are reversed
+const pssAnswers = Array(10).fill(-1);
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  initTabs();
+  initECGChart();
+  initPSS();
+  carregarPortas();
+  carregarParticipantes();
+  carregarSessoes();
+  carregarStats();
+  setInterval(pollStatus, 2000);
+  setInterval(pollBPMNeuroKit, 1500);
+});
+
+function initTabs() {
+  document.querySelectorAll('.tab').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+      document.querySelectorAll('.pan').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      document.getElementById(b.dataset.t).classList.add('on');
+      if (b.dataset.t === 'participantes') { carregarParticipantes(); carregarStats(); }
+      if (b.dataset.t === 'resultados') carregarSessoes();
+      if (b.dataset.t === 'coleta') carregarSessoesForm();
+      if (b.dataset.t === 'debug') carregarDebug();
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ECG CHART
+// ═══════════════════════════════════════════════════════════════
+function initECGChart() {
+  const ctx = document.getElementById('ecgChart').getContext('2d');
+  ecgChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        borderColor: '#dc2626',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.3,
+        fill: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          display: true,
+          grid: { color: '#f1f5f9' },
+          ticks: { font: { size: 10, family: 'Source Sans 3' }, color: '#94a3b8' },
+        }
+      }
+    }
+  });
+}
+
+function addECGData(samples) {
+  const labels = ecgChart.data.labels;
+  const data = ecgChart.data.datasets[0].data;
+  for (const s of samples) {
+    const v = ECG_INVERTER_POLARIDADE ? -s.v : s.v;
+    labels.push('');
+    data.push(v);
+    // [NOVO] Acumula no buffer de BPM
+    bpmBuffer.push(v);
+  }
+  while (labels.length > ECG_MAX_POINTS) { labels.shift(); data.shift(); }
+  while (bpmBuffer.length > BPM_WINDOW) { bpmBuffer.shift(); }
+  ecgChart.update('none');
+
+  // Fallback local (heurístico) apenas se BPM NeuroKit2 estiver desativado.
+  if (!BPM_USAR_NEUROKIT) calcularBPM();
+
+  // Feed raw data to debug panel
+  const rawEl = document.getElementById('rawData');
+  if (rawEl) {
+    for (const s of samples) {
+      rawEl.textContent += `idx=${s.idx} v=${s.v}mV lo=${s.lo}\n`;
+    }
+    const lines = rawEl.textContent.split('\n');
+    if (lines.length > RAW_MAX_LINES) {
+      rawEl.textContent = lines.slice(-RAW_MAX_LINES).join('\n');
+    }
+    rawEl.scrollTop = rawEl.scrollHeight;
+  }
+}
+
+// [NOVO] Detecção simplificada de picos R para BPM em tempo real
+function calcularBPM() {
+  if (bpmBuffer.length < 500) return; // precisa de pelo menos 2s
+
+  // Usa os últimos 3 segundos de dados
+  const buf = bpmBuffer.slice(-BPM_WINDOW);
+  const mean = buf.reduce((a,b) => a+b, 0) / buf.length;
+  const maxVal = Math.max(...buf);
+  const threshold = mean + (maxVal - mean) * 0.6; // limiar adaptativo a 60% da amplitude
+
+  // Detecta picos acima do limiar com distância mínima de 100 amostras (~0.4s = 150bpm máx)
+  const peaks = [];
+  const MIN_DIST = 100;
+  for (let i = 2; i < buf.length - 2; i++) {
+    if (buf[i] > threshold &&
+        buf[i] > buf[i-1] && buf[i] > buf[i-2] &&
+        buf[i] >= buf[i+1] && buf[i] >= buf[i+2]) {
+      if (peaks.length === 0 || (i - peaks[peaks.length-1]) >= MIN_DIST) {
+        peaks.push(i);
+      }
+    }
+  }
+
+  // Calcula BPM médio a partir dos intervalos entre picos
+  if (peaks.length >= 3) {
+    const intervals = [];
+    for (let i = 1; i < peaks.length; i++) {
+      intervals.push(peaks[i] - peaks[i-1]);
+    }
+    const avgInterval = intervals.reduce((a,b) => a+b, 0) / intervals.length;
+    const bpm = Math.round(60 * 250 / avgInterval); // 250 Hz
+    if (bpm >= 30 && bpm <= 220) {
+      bpmValue = bpm;
+      document.getElementById('statBPM').textContent = bpm;
+      document.getElementById('statBPM').style.color = (bpm < 60 || bpm > 100) ? 'var(--amber)' : 'var(--red)';
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SSE
+// ═══════════════════════════════════════════════════════════════
+function startSSE() {
+  if (evtSource) return;
+  evtSource = new EventSource('/stream');
+  evtSource.onmessage = (e) => {
+    try {
+      const samples = JSON.parse(e.data);
+      if (samples.length > 0) addECGData(samples);
+    } catch(err) {}
+  };
+  evtSource.onerror = () => { stopSSE(); setTimeout(startSSE, 2000); };
+}
+
+function stopSSE() {
+  if (evtSource) { evtSource.close(); evtSource = null; }
+}
+
+async function pollBPMNeuroKit() {
+  if (!BPM_USAR_NEUROKIT || !conectado || !lendo) return;
+  if (bpmReqEmAndamento) return;
+
+  bpmReqEmAndamento = true;
+  try {
+    const r = await api('/api/bpm_tempo_real');
+    if (r && r.bpm != null) {
+      bpmValue = r.bpm;
+      const bpmExibicao = Math.round(r.bpm);
+      const el = document.getElementById('statBPM');
+      el.textContent = bpmExibicao;
+      el.style.color = (bpmExibicao < 60 || bpmExibicao > 100) ? 'var(--amber)' : 'var(--red)';
+    } else {
+      document.getElementById('statBPM').textContent = '—';
+      bpmValue = null;
+    }
+  } catch(err) {
+    // Sem ação: mantém último valor válido na tela.
+  } finally {
+    bpmReqEmAndamento = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API CALLS
+// ═══════════════════════════════════════════════════════════════
+async function api(url, method='GET', body=null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  return await r.json();
+}
+
+async function carregarPortas() {
+  const portas = await api('/api/portas');
+  const sel = document.getElementById('selPorta');
+  sel.innerHTML = '<option value="">Selecione...</option>';
+  portas.forEach(p => {
+    sel.innerHTML += `<option value="${p.porta}">${p.porta} — ${p.descricao}</option>`;
+  });
+}
+
+async function toggleConexao() {
+  const btn = document.getElementById('btnConectar');
+  if (!conectado) {
+    const porta = document.getElementById('selPorta').value;
+    if (!porta) return toast('Selecione uma porta serial', 'err');
+    btn.disabled = true; btn.textContent = 'Conectando...';
+    const r = await api('/api/conectar', 'POST', { porta });
+    if (r.ok) {
+      conectado = true;
+      btn.textContent = 'Desconectar'; btn.className = 'btn btn-red';
+      document.getElementById('btnLeitura').disabled = false;
+      startSSE();
+      toast('Conectado com sucesso');
+    } else {
+      toast(r.erro || 'Erro ao conectar', 'err');
+    }
+    btn.disabled = false;
+  } else {
+    await api('/api/desconectar', 'POST');
+    conectado = false; lendo = false;
+    btn.textContent = 'Conectar'; btn.className = 'btn btn-primary';
+    document.getElementById('btnLeitura').disabled = true;
+    document.getElementById('btnLeitura').textContent = '▶ Iniciar Leitura';
+    document.getElementById('btnLeitura').className = 'btn btn-teal';
+    stopSSE();
+    document.getElementById('statBPM').textContent = '—';
+    bpmValue = null;
+    toast('Desconectado');
+  }
+}
+
+async function toggleLeitura() {
+  const btn = document.getElementById('btnLeitura');
+  if (!lendo) {
+    const pid = document.getElementById('selParticipanteLeitura').value || null;
+    duracaoSeg = parseInt(document.getElementById('inpDuracao').value) || 300;
+    const totalAlvo = duracaoSeg * 250; // amostras a 250 Hz
+    const r = await api('/api/leitura/iniciar', 'POST', {
+      id_participante: pid ? parseInt(pid) : null,
+      duracao_seg: duracaoSeg
+    });
+    if (r.ok) {
+      lendo = true;
+      leituraInicio = Date.now();
+      bpmBuffer.length = 0; bpmValue = null;
+      document.getElementById('statBPM').textContent = '—';
+      btn.textContent = '⏹ Parar Leitura'; btn.className = 'btn btn-red';
+      document.getElementById('rawData').textContent = '';
+      // Formata tempo inicial
+      const m = Math.floor(duracaoSeg/60), s = duracaoSeg%60;
+      document.getElementById('lblTempo').textContent = `⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      toast(`Leitura iniciada (${duracaoSeg}s)`);
+    } else { toast(r.erro || 'Erro', 'err'); }
+  } else {
+    await api('/api/leitura/parar', 'POST');
+    lendo = false;
+    leituraInicio = null;
+    btn.textContent = '▶ Iniciar Leitura'; btn.className = 'btn btn-teal';
+    document.getElementById('statBPM').textContent = '—';
+    bpmValue = null;
+    toast('Leitura encerrada');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATUS POLLING
+// ═══════════════════════════════════════════════════════════════
+async function pollStatus() {
+  try {
+    const s = await api('/api/status_serial');
+    // LED
+    const dot = document.getElementById('ledDot');
+    const lbl = document.getElementById('ledLabel');
+    dot.className = 'led-dot';
+    const estado = s.estado_placa || 'DESCONECTADO';
+    const ledMap = {
+      'DESCONECTADO':       ['blue','Desconectado'],
+      'CONECTADO_IDLE':     ['green','Conectado'],
+      'LENDO_ECG':          ['green-blink','Lendo ECG'],
+      'LENDO_DESCONECTADO': ['blue-blink','Lendo (sem Python)'],
+      'ELETRODO_OFF':       ['red-blink','Eletrodo Solto'],
+      'ERRO_ADS1115':       ['amber','Erro ADS1115'],
+      'ERRO_AD8232':        ['red','Erro AD8232'],
+    };
+    const [cls, txt] = ledMap[estado] || ['','—'];
+    dot.classList.add(cls);
+    lbl.textContent = txt;
+
+    // Stats
+    document.getElementById('statEstado').textContent = estado.replace(/_/g,' ');
+    document.getElementById('statRaw').textContent = (s.amostras_raw || 0).toLocaleString();
+    document.getElementById('statPerdidas').textContent = s.amostras_perdidas || 0;
+    document.getElementById('statPorta').textContent = s.porta || '—';
+
+    // Progress
+    const total = s.total_amostras || 0;
+    const totalAlvo = duracaoSeg * 250;
+    const pct = totalAlvo > 0 ? Math.min(100, round2(total / totalAlvo * 100)) : 0;
+    document.getElementById('lblAmostras').textContent = `${total.toLocaleString()} / ${totalAlvo.toLocaleString()} amostras`;
+    document.getElementById('lblProgresso').textContent = `${pct}%`;
+    document.getElementById('barProgresso').style.width = `${pct}%`;
+
+    // [NOVO] Countdown timer
+    if (leituraInicio && lendo) {
+      const elapsed = Math.floor((Date.now() - leituraInicio) / 1000);
+      const remaining = Math.max(0, duracaoSeg - elapsed);
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      document.getElementById('lblTempo').textContent = `⏱ ${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+      if (remaining <= 0) {
+        document.getElementById('lblTempo').textContent = '⏱ 00:00 ✓';
+      }
+    }
+
+    // [NOVO] Debug diagnostics
+    const dbgRaw = document.getElementById('dbgRaw');
+    const dbgDec = document.getElementById('dbgDec');
+    const dbgLost = document.getElementById('dbgLost');
+    if (dbgRaw) dbgRaw.textContent = (s.amostras_raw || 0).toLocaleString();
+    if (dbgDec) dbgDec.textContent = (s.amostras_recebidas || 0).toLocaleString();
+    if (dbgLost) dbgLost.textContent = s.amostras_perdidas || 0;
+
+    // Sync connection state
+    conectado = s.conectado;
+    const btnC = document.getElementById('btnConectar');
+    if (conectado) { btnC.textContent='Desconectar'; btnC.className='btn btn-red'; }
+    else { btnC.textContent='Conectar'; btnC.className='btn btn-primary'; }
+    document.getElementById('btnLeitura').disabled = !conectado;
+
+    // Sync reading state
+    if (estado === 'LENDO_ECG' || estado === 'LENDO_DESCONECTADO' || estado === 'ELETRODO_OFF') {
+      if (!lendo) { lendo = true; leituraInicio = leituraInicio || Date.now(); }
+      document.getElementById('btnLeitura').textContent = '⏹ Parar Leitura';
+      document.getElementById('btnLeitura').className = 'btn btn-red';
+    } else if (estado === 'CONECTADO_IDLE' || estado === 'DESCONECTADO') {
+      if (lendo) { lendo = false; leituraInicio = null; }
+      document.getElementById('btnLeitura').textContent = '▶ Iniciar Leitura';
+      document.getElementById('btnLeitura').className = 'btn btn-teal';
+      document.getElementById('statBPM').textContent = '—';
+      bpmValue = null;
+    }
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PARTICIPANTES
+// ═══════════════════════════════════════════════════════════════
+async function carregarParticipantes() {
+  const ps = await api('/api/participantes');
+  const tb = document.getElementById('tbParticipantes');
+  const selLeitura = document.getElementById('selParticipanteLeitura');
+  tb.innerHTML = '';
+  selLeitura.innerHTML = '<option value="">Sem participante (teste)</option>';
+  const cicloLabel = { basico:'Básico', clinico:'Clínico', internato:'Internato' };
+  ps.forEach(p => {
+    tb.innerHTML += `<tr>
+      <td style="font-weight:600;color:var(--text);">${p.codigo}</td>
+      <td><span class="badge badge-blue" style="padding:0.1rem 0.4rem;border-radius:20px;font-size:0.7rem;">${cicloLabel[p.ciclo]||p.ciclo}</span></td>
+      <td>${p.idade||'—'}</td><td>${p.sexo}</td>
+      <td>${p.total_sessoes}</td><td style="font-size:0.78rem;">${p.criado_em||'—'}</td>
+    </tr>`;
+    selLeitura.innerHTML += `<option value="${p.id}">${p.codigo} (${cicloLabel[p.ciclo]||p.ciclo})</option>`;
+  });
+}
+
+async function criarParticipante() {
+  const codigo = document.getElementById('inpCodigo').value.trim();
+  const ciclo  = document.getElementById('selCiclo').value;
+  const idade  = document.getElementById('inpIdade').value;
+  const sexo   = document.getElementById('selSexo').value;
+  if (!codigo || !idade) return toast('Preencha código e idade', 'err');
+  const r = await api('/api/participantes', 'POST', { codigo, ciclo, idade: parseInt(idade), sexo });
+  if (r.ok) { toast(`Participante ${codigo} cadastrado`); carregarParticipantes(); document.getElementById('inpCodigo').value=''; document.getElementById('inpIdade').value=''; }
+  else toast(r.erro || 'Erro ao cadastrar', 'err');
+}
+
+async function carregarStats() {
+  const s = await api('/api/banco/stats');
+  document.getElementById('stTotal').textContent = s.total_participantes;
+  document.getElementById('stSessoes').textContent = s.total_sessoes;
+  document.getElementById('stProcessadas').textContent = s.sessoes_processadas;
+  document.getElementById('stDB').textContent = s.tamanho_db_mb;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PSS-10
+// ═══════════════════════════════════════════════════════════════
+function initPSS() {
+  const container = document.getElementById('pssContainer');
+  PSS_QUESTIONS.forEach((q, i) => {
+    const row = document.createElement('div');
+    row.className = 'pss-row';
+    row.innerHTML = `
+      <div class="pss-question"><strong>${i+1}.</strong> ${q}</div>
+      <div class="pss-options">
+        ${[0,1,2,3,4].map(v => `<div class="pss-opt" data-q="${i}" data-v="${v}">${v}</div>`).join('')}
+      </div>`;
+    container.appendChild(row);
+  });
+  container.addEventListener('click', (e) => {
+    const opt = e.target.closest('.pss-opt');
+    if (!opt) return;
+    const q = parseInt(opt.dataset.q), v = parseInt(opt.dataset.v);
+    pssAnswers[q] = v;
+    opt.parentNode.querySelectorAll('.pss-opt').forEach(o => o.classList.remove('sel'));
+    opt.classList.add('sel');
+    updatePSSScore();
+  });
+}
+
+function updatePSSScore() {
+  let score = 0;
+  pssAnswers.forEach((a, i) => {
+    if (a < 0) return;
+    score += PSS_REVERSED.includes(i) ? (4 - a) : a;
+  });
+  document.getElementById('pssScore').textContent = score;
+}
+
+function getPSSScore() {
+  if (pssAnswers.some(a => a < 0)) return null;
+  let score = 0;
+  pssAnswers.forEach((a, i) => {
+    score += PSS_REVERSED.includes(i) ? (4 - a) : a;
+  });
+  return score;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COLETA FORMS
+// ═══════════════════════════════════════════════════════════════
+async function carregarSessoesForm() {
+  const sessoes = await api('/api/sessoes');
+  const sel = document.getElementById('selSessaoForm');
+  sel.innerHTML = '<option value="">Selecione uma sessão...</option>';
+  sessoes.forEach(s => {
+    if (s.fim_em) {
+      sel.innerHTML += `<option value="${s.id}">Sessão #${s.id} — ${s.codigo} (${s.inicio_em})</option>`;
+    }
+  });
+}
+
+function onSessaoSelecionada() {
+  const v = document.getElementById('selSessaoForm').value;
+  document.getElementById('formArea').style.display = v ? 'block' : 'none';
+}
+
+async function salvarFormularios() {
+  const sid = document.getElementById('selSessaoForm').value;
+  if (!sid) return toast('Selecione uma sessão', 'err');
+  const pss = getPSSScore();
+  if (pss === null) return toast('Responda todas as questões do PSS-10', 'err');
+  const dados = {
+    id_sessao:    parseInt(sid),
+    pss10_score:  pss,
+    sono_horas:   parseFloat(document.getElementById('inpSono').value) || null,
+    cafeina_mg:   parseInt(document.getElementById('inpCafeina').value) || 0,
+    tabagismo:    parseInt(document.getElementById('selTabagismo').value),
+    etilismo_24h: parseInt(document.getElementById('selEtilismo').value),
+    medicacao:    document.getElementById('inpMedicacao').value || 'nenhuma',
+    ipaq_nivel:   document.getElementById('selIPAQ').value,
+  };
+  const r = await api('/api/inventario', 'POST', dados);
+  if (r.ok) toast('PSS-10 e Inventário salvos com sucesso');
+  else toast(r.erro || 'Erro ao salvar', 'err');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESULTADOS
+// ═══════════════════════════════════════════════════════════════
+async function carregarSessoes() {
+  const sessoes = await api('/api/sessoes');
+  const tb = document.getElementById('tbSessoes');
+  tb.innerHTML = '';
+  sessoes.forEach(s => {
+    const si = s.si_baevsky != null ? s.si_baevsky.toFixed(1) : '—';
+    const pss = s.pss10_score != null ? s.pss10_score : '—';
+    const statusBadge = s.processada
+      ? '<span class="badge badge-green" style="padding:0.1rem 0.4rem;border-radius:20px;font-size:0.68rem;">Processada</span>'
+      : (s.fim_em ? '<span class="badge badge-amber" style="padding:0.1rem 0.4rem;border-radius:20px;font-size:0.68rem;">Pendente</span>' : '<span class="badge badge-gray" style="padding:0.1rem 0.4rem;border-radius:20px;font-size:0.68rem;">Em coleta</span>');
+    tb.innerHTML += `<tr>
+      <td style="font-weight:600;">${s.id}</td>
+      <td>${s.codigo}</td><td>${s.ciclo}</td>
+      <td style="font-size:0.78rem;">${s.inicio_em||'—'}</td>
+      <td>${(s.total_amostras||0).toLocaleString()}</td>
+      <td style="font-weight:600;">${si}</td><td>${pss}</td>
+      <td>${statusBadge}</td>
+      <td>
+        ${s.fim_em && !s.processada ? `<button class="btn btn-primary btn-sm" onclick="processarSessao(${s.id})">Processar</button>` : ''}
+        ${s.processada ? `<button class="btn btn-outline btn-sm" onclick="verResultado(${s.id})">Ver</button>` : ''}
+      </td>
+    </tr>`;
+  });
+}
+
+async function processarSessao(id) {
+  toast('Processando...');
+  const r = await api(`/api/processar/${id}`, 'POST');
+  if (r.erro) { toast(r.erro, 'err'); return; }
+  toast('Processamento concluído');
+  carregarSessoes();
+  mostrarResultado(r);
+}
+
+async function verResultado(id) {
+  const r = await api(`/api/resultado/${id}`);
+  if (r.erro) { toast(r.erro, 'err'); return; }
+  mostrarResultado(r);
+}
+
+function mostrarResultado(r) {
+  document.getElementById('resultArea').style.display = 'block';
+  document.getElementById('rSI').textContent = r.si_baevsky != null ? r.si_baevsky.toFixed(1) : '—';
+  document.getElementById('rFC').textContent = r.fc_media || '—';
+  document.getElementById('rSDNN').textContent = r.sdnn_ms != null ? r.sdnn_ms.toFixed(1) : '—';
+  document.getElementById('rRMSSD').textContent = r.rmssd_ms != null ? r.rmssd_ms.toFixed(1) : '—';
+  document.getElementById('rPNN50').textContent = r.pnn50 != null ? r.pnn50.toFixed(1) : '—';
+  document.getElementById('rMo').textContent = r.mo_ms || '—';
+  document.getElementById('rAMo').textContent = r.amo_pct || '—';
+  document.getElementById('rMxDMn').textContent = r.mxdmn_ms || '—';
+
+  const interp = r.interpretacao_si || {};
+  const badge = document.getElementById('badgeSI');
+  badge.textContent = interp.rotulo || '—';
+  badge.style.background = (interp.cor || '#ccc') + '22';
+  badge.style.color = interp.cor || '#666';
+
+  const desc = document.getElementById('descSI');
+  desc.style.background = (interp.cor || '#ccc') + '11';
+  desc.style.color = interp.cor || '#666';
+  desc.innerHTML = `<strong>${interp.rotulo||''}:</strong> ${interp.descricao||''}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast toast-${type} show`;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DEBUG
+// ═══════════════════════════════════════════════════════════════
+function round2(n) { return Math.round(n * 10) / 10; }
+
+async function carregarDebug() {
+  try {
+    const logs = await api('/api/debug/log');
+    const el = document.getElementById('debugLog');
+    el.textContent = logs.join('\n');
+    el.scrollTop = el.scrollHeight;
+  } catch(e) { console.error('Debug load error:', e); }
+}
+
+function copiarDebug(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const texto = el.textContent;
+  navigator.clipboard.writeText(texto).then(() => {
+    toast('Copiado para a área de transferência');
+  }).catch(() => {
+    // Fallback para navegadores sem clipboard API
+    const ta = document.createElement('textarea');
+    ta.value = texto;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('Copiado para a área de transferência');
+  });
+}
+</script>
+</body>
+</html>
