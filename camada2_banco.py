@@ -97,7 +97,6 @@ def inicializar():
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 id_sessao       INTEGER NOT NULL UNIQUE REFERENCES sessoes(id),
                 pss10_score     INTEGER,  -- 0–40
-                sono_horas      REAL,     -- horas dormidas na noite anterior
                 cafeina_mg      INTEGER,  -- mg de cafeína nas últimas 4h
                 tabagismo       INTEGER,  -- 0=não | 1=sim
                 etilismo_24h    INTEGER,  -- 0=não | 1=sim
@@ -333,12 +332,12 @@ def salvar_inventario(id_sessao: int, dados: dict):
         conn = _conectar()
         conn.execute("""
             INSERT OR REPLACE INTO inventario
-                (id_sessao, pss10_score, sono_horas, cafeina_mg,
+                (id_sessao, pss10_score, cafeina_mg,
                  tabagismo, etilismo_24h, medicacao, ipaq_nivel)
-            VALUES (?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?)
         """, (
             id_sessao,
-            dados.get("pss10_score"), dados.get("sono_horas"),
+            dados.get("pss10_score"),
             dados.get("cafeina_mg"),  dados.get("tabagismo"),
             dados.get("etilismo_24h"),dados.get("medicacao"),
             dados.get("ipaq_nivel"),
