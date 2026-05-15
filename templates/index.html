@@ -342,7 +342,16 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
         </div>
         <div class="form-group">
           <label class="form-label">Tabagismo</label>
-          <select class="form-select" id="selTabagismo"><option value="0">Não</option><option value="1">Sim</option></select>
+          <select class="form-select" id="selTabagismo" onchange="toggleTabagismoFreq()"><option value="0">Não</option><option value="1">Sim</option></select>
+        </div>
+        <div class="form-group" id="grpTabagismoFreq" style="display:none;">
+          <label class="form-label">Frequência Tabagismo</label>
+          <select class="form-select" id="selTabagismoFreq">
+            <option value="">Selecione...</option>
+            <option value="diario">Diário</option>
+            <option value="semanal">Semanal</option>
+            <option value="ocasional">Ocasional</option>
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label">Etilismo (últimas 24h)</label>
@@ -355,6 +364,20 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
             <option value="insuficiente">Insuficientemente ativo</option>
             <option value="ativo">Ativo</option>
             <option value="muito_ativo">Muito ativo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Psicoterapia</label>
+          <select class="form-select" id="selPsicoterapia" onchange="togglePsicoterapiaFreq()"><option value="0">Não</option><option value="1">Sim</option></select>
+        </div>
+        <div class="form-group" id="grpPsicoterapiaFreq" style="display:none;">
+          <label class="form-label">Frequência Psicoterapia</label>
+          <select class="form-select" id="selPsicoterapiaFreq">
+            <option value="">Selecione...</option>
+            <option value="semanal">Semanal</option>
+            <option value="quinzenal">Quinzenal</option>
+            <option value="mensal">Mensal</option>
+            <option value="ocasional">Ocasional</option>
           </select>
         </div>
       </div>
@@ -916,6 +939,16 @@ async function carregarSessoesForm() {
   });
 }
 
+function toggleTabagismoFreq() {
+  const tabagismo = document.getElementById('selTabagismo').value;
+  document.getElementById('grpTabagismoFreq').style.display = tabagismo === '1' ? '' : 'none';
+}
+
+function togglePsicoterapiaFreq() {
+  const psi = document.getElementById('selPsicoterapia').value;
+  document.getElementById('grpPsicoterapiaFreq').style.display = psi === '1' ? '' : 'none';
+}
+
 function onSessaoSelecionada() {
   const v = document.getElementById('selSessaoForm').value;
   document.getElementById('formArea').style.display = v ? 'block' : 'none';
@@ -926,14 +959,24 @@ async function salvarFormularios() {
   if (!sid) return toast('Selecione uma sessão', 'err');
   const pss = getPSSScore();
   if (pss === null) return toast('Responda todas as questões do PSS-10', 'err');
+
+  const tabagismo = parseInt(document.getElementById('selTabagismo').value);
+  const tabagismoFreq = tabagismo === 1 ? (document.getElementById('selTabagismoFreq').value || null) : null;
+  
+  const psicoterapia = parseInt(document.getElementById('selPsicoterapia').value);
+  const psicoterapiaFreq = psicoterapia === 1 ? (document.getElementById('selPsicoterapiaFreq').value || null) : null;
+
   const dados = {
-    id_sessao:    parseInt(sid),
-    pss10_score:  pss,
-    cafeina_mg:   parseInt(document.getElementById('inpCafeina').value) || 0,
-    tabagismo:    parseInt(document.getElementById('selTabagismo').value),
-    etilismo_24h: parseInt(document.getElementById('selEtilismo').value),
-    medicacao:    document.getElementById('inpMedicacao').value || 'nenhuma',
-    ipaq_nivel:   document.getElementById('selIPAQ').value,
+    id_sessao:         parseInt(sid),
+    pss10_score:       pss,
+    cafeina_mg:        parseInt(document.getElementById('inpCafeina').value) || 0,
+    tabagismo:         tabagismo,
+    tabagismo_freq:    tabagismoFreq,
+    etilismo_24h:      parseInt(document.getElementById('selEtilismo').value),
+    medicacao:         document.getElementById('inpMedicacao').value || 'nenhuma',
+    ipaq_nivel:        document.getElementById('selIPAQ').value,
+    psicoterapia:      psicoterapia,
+    psicoterapia_freq: psicoterapiaFreq,
   };
   const r = await api('/api/inventario', 'POST', dados);
   if (r.ok) toast('PSS-10 e Inventário salvos com sucesso');

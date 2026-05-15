@@ -99,9 +99,12 @@ def inicializar():
                 pss10_score     INTEGER,  -- 0–40
                 cafeina_mg      INTEGER,  -- mg de cafeína nas últimas 4h
                 tabagismo       INTEGER,  -- 0=não | 1=sim
+                tabagismo_freq  TEXT,     -- frequência (diario | semanal | ocasional)
                 etilismo_24h    INTEGER,  -- 0=não | 1=sim
                 medicacao       TEXT,     -- nome ou "nenhuma"
-                ipaq_nivel      TEXT      -- sedentario | insuficiente | ativo | muito_ativo
+                ipaq_nivel      TEXT,     -- sedentario | insuficiente | ativo | muito_ativo
+                psicoterapia    INTEGER DEFAULT 0, -- 0=não | 1=sim
+                psicoterapia_freq TEXT     -- frequência (semanal | quinzenal | mensal | ocasional)
             );
         """)
         conn.commit()
@@ -333,14 +336,18 @@ def salvar_inventario(id_sessao: int, dados: dict):
         conn.execute("""
             INSERT OR REPLACE INTO inventario
                 (id_sessao, pss10_score, cafeina_mg,
-                 tabagismo, etilismo_24h, medicacao, ipaq_nivel)
-            VALUES (?,?,?,?,?,?,?)
+                 tabagismo, tabagismo_freq,
+                 etilismo_24h, medicacao, ipaq_nivel,
+                 psicoterapia, psicoterapia_freq)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
         """, (
             id_sessao,
             dados.get("pss10_score"),
-            dados.get("cafeina_mg"),  dados.get("tabagismo"),
-            dados.get("etilismo_24h"),dados.get("medicacao"),
+            dados.get("cafeina_mg"),
+            dados.get("tabagismo"),     dados.get("tabagismo_freq"),
+            dados.get("etilismo_24h"),  dados.get("medicacao"),
             dados.get("ipaq_nivel"),
+            dados.get("psicoterapia"),  dados.get("psicoterapia_freq"),
         ))
         conn.commit()
         conn.close()
