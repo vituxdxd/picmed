@@ -119,6 +119,15 @@ def _encerrar_sessao_interna():
     banco.fechar_sessao(sid, total)
 
 
+# ─── Callback de #FIM_SESSAO ─────────────────────────────────────────────────
+# O firmware v3.5 encerra a leitura por tempo (millis) e envia #FIM_SESSAO.
+# Registramos após _encerrar_sessao_interna existir para evitar NameError.
+# Quando o ESP32 termina a coleta, este callback fecha a sessão no banco
+# imediatamente, sem depender do contador exato de amostras (que pode divergir
+# por drift de clock entre ESP32 e Python).
+aquisicao.on_fim_sessao = _encerrar_sessao_interna
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ROTAS — INTERFACE
 # ═══════════════════════════════════════════════════════════════════════════════

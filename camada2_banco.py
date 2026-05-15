@@ -108,6 +108,11 @@ def inicializar():
         conn.commit()
         conn.close()
 
+    # Repara sessões órfãs: sessões com dados ECG mas sem fim_em.
+    # Ocorre quando o firmware encerrou a leitura mas o callback #FIM_SESSAO
+    # não foi disparado (ex: sistema reiniciado antes do processamento).
+    reparar_sessoes_orfas()
+
 
 # ─── Participantes ────────────────────────────────────────────────────────────
 def criar_participante(codigo: str, ciclo: str, idade: int, sexo: str) -> int:
@@ -349,6 +354,43 @@ def obter_metricas(id_sessao: int) -> Optional[dict]:
     ).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+# ─── Reparação de sessões órfãs ───────────────────────────────────────────────
+def reparar_sessoes_orfas():
+    """
+    Varre sessões com fim_em=NULL que já possuem dados ECG salvos
+    e as fecha automaticamente. Isso recupera sessões que o firmware
+    encerrou mas cujo marcador #FIM_SESSAO não foi processado.
+    """
+    with _lock_escrita:
+        conn = _conectar()
+        orfas = conn.execute("""
+            SELECT s.id, COUNT(e.id) as n_amostras
+            FROM sessoes s
+            INNER JOIN ecg_bruto e ON e.id_sessao = s.id
+            WHERE s.fim_em IS NULL
+              AND s.processada = 0
+            GROUP BY s.id
+            HAVING n_amostras > 0
+        """).fetchall()
+
+        reparadas = 0
+        for row in orfas:
+            conn.execute("""
+                UPDATE sessoes
+                SET fim_em = datetime('now','localtime'),
+                    total_amostras = ?,
+                    qualidade = 'boa'
+                WHERE id = ?
+            """, (row["n_amostras"], row["id"]))
+            reparadas += 1
+
+        conn.commit()
+        conn.close()
+
+    if reparadas > 0:
+        print(f"[BANCO] Reparadas {reparadas} sessão(ões) órfã(s) com dados ECG.")
 
 
 # ─── Estatísticas gerais ──────────────────────────────────────────────────────

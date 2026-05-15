@@ -116,6 +116,11 @@ _lock_serial     = threading.Lock()
 _debug_log  = deque(maxlen=200)
 _lock_debug = threading.Lock()
 
+# ─── Callback de fim de sessão ────────────────────────────────────────────────
+# Registrado por app.py para encerrar a sessão no banco quando o firmware
+# termina a leitura por tempo e envia #FIM_SESSAO.
+on_fim_sessao: Optional[callable] = None
+
 
 def _debug(msg: str):
     """Adiciona mensagem ao ring buffer de debug com timestamp."""
@@ -197,6 +202,12 @@ def _processar_linha_texto(linha: str):
 
     if "#FIM_SESSAO" in linha:
         status.sessao_ativa = False
+        if on_fim_sessao is not None:
+            try:
+                on_fim_sessao()
+                _debug("callback on_fim_sessao executado")
+            except Exception as e:
+                _debug(f"ERRO callback on_fim_sessao: {e}")
         return
 
     if linha.startswith("#ESTADO:"):
