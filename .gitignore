@@ -26,3 +26,5 @@ Thumbs.db
 *.bin
 desktop.ini
 *.pdf
+*.db-shm
+*.db-wal

@@ -97,6 +97,7 @@ def inicializar():
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 id_sessao       INTEGER NOT NULL UNIQUE REFERENCES sessoes(id),
                 pss10_score     INTEGER,  -- 0–40
+                pss10_answers   TEXT,     -- JSON array com 10 respostas [0-4]
                 cafeina_mg      INTEGER,  -- mg de cafeína nas últimas 4h
                 tabagismo       INTEGER,  -- 0=não | 1=sim
                 tabagismo_freq  TEXT,     -- frequência (diario | semanal | ocasional)
@@ -441,6 +442,7 @@ def salvar_inventario(id_sessao: int, dados: dict):
             # Mantém os valores existentes para campos não fornecidos nesta chamada
             merged = {
                 "pss10_score":       dados.get("pss10_score", existente.get("pss10_score")),
+                "pss10_answers":     dados.get("pss10_answers", existente.get("pss10_answers")),
                 "cafeina_mg":        dados.get("cafeina_mg", existente.get("cafeina_mg")),
                 "tabagismo":         dados.get("tabagismo", existente.get("tabagismo")),
                 "tabagismo_freq":    dados.get("tabagismo_freq", existente.get("tabagismo_freq")),
@@ -453,6 +455,7 @@ def salvar_inventario(id_sessao: int, dados: dict):
         else:
             merged = {
                 "pss10_score":       dados.get("pss10_score"),
+                "pss10_answers":     dados.get("pss10_answers"),
                 "cafeina_mg":        dados.get("cafeina_mg"),
                 "tabagismo":         dados.get("tabagismo"),
                 "tabagismo_freq":    dados.get("tabagismo_freq"),
@@ -462,16 +465,17 @@ def salvar_inventario(id_sessao: int, dados: dict):
                 "psicoterapia_freq": dados.get("psicoterapia_freq"),
             }
 
-        conn.execute("""
+            conn.execute("""
             INSERT OR REPLACE INTO inventario
-                (id_sessao, pss10_score, cafeina_mg,
+                (id_sessao, pss10_score, pss10_answers, cafeina_mg,
                  tabagismo, tabagismo_freq,
                  etilismo_24h, medicacao,
                  psicoterapia, psicoterapia_freq)
-            VALUES (?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
         """, (
             id_sessao,
             merged["pss10_score"],
+            merged.get("pss10_answers"),
             merged["cafeina_mg"],
             merged["tabagismo"],     merged["tabagismo_freq"],
             merged["etilismo_24h"],  merged["medicacao"],

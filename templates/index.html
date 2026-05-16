@@ -1494,10 +1494,28 @@ async function onSessaoSelecionada() {
   if (!v) return;
   const sid = parseInt(v);
 
-  // Carrega inventário
+  // Carrega inventário (e PSS-10 answers se existirem)
   try {
     const inv = await api(`/api/inventario/${sid}`).catch(() => null);
     if (inv && !inv.erro) {
+      // Restaura respostas do PSS-10
+      if (inv.pss10_answers) {
+        try {
+          const saved = JSON.parse(inv.pss10_answers);
+          if (Array.isArray(saved) && saved.length === 10) {
+            for (let i = 0; i < 10; i++) {
+              pssAnswers[i] = saved[i];
+              const container = document.getElementById('pssContainer');
+              const opt = container?.querySelector(`.pss-opt[data-q="${i}"][data-v="${saved[i]}"]`);
+              if (opt) {
+                opt.parentNode.querySelectorAll('.pss-opt').forEach(o => o.classList.remove('sel'));
+                opt.classList.add('sel');
+              }
+            }
+            updatePSSScore();
+          }
+        } catch(e) {}
+      }
       document.getElementById('inpCafeina').value = inv.cafeina_mg ?? '';
       document.getElementById('inpMedicacao').value = inv.medicacao ?? '';
       document.getElementById('selTabagismo').value = inv.tabagismo ?? '0';
@@ -1583,7 +1601,12 @@ async function salvarPSS10() {
   if (!sid) return toast('Selecione uma sessão', 'err');
   const pss = getPSSScore();
   if (pss === null) return toast('Responda todas as questões do PSS-10', 'err');
-  const r = await api('/api/pss10', 'POST', { id_sessao: parseInt(sid), pss10_score: pss });
+  const answers = [...pssAnswers];
+  const r = await api('/api/pss10', 'POST', {
+    id_sessao: parseInt(sid),
+    pss10_score: pss,
+    pss10_answers: JSON.stringify(answers),
+  });
   if (r.ok) toast('PSS-10 salvo');
   else toast(r.erro || 'Erro ao salvar PSS-10', 'err');
 }
