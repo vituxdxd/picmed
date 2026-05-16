@@ -74,6 +74,7 @@ Não foi possível gerar o gráfico do ECG porque o trecho válido é curto dema
     idx_inicio = max(0, (sinal.size - pontos_trecho) // 2)
     idx_fim = idx_inicio + pontos_trecho
     trecho = sinal[idx_inicio:idx_fim]
+    trecho_plot = -trecho  # corrige a polaridade apenas para visualização no PDF
     tempo = np.arange(trecho.size) / fs
 
     arquivo_png = tempfile.NamedTemporaryFile(
@@ -85,7 +86,7 @@ Não foi possível gerar o gráfico do ECG porque o trecho válido é curto dema
     caminho_figura = Path(arquivo_png.name)
 
     fig, ax = plt.subplots(figsize=(9.5, 2.8))
-    ax.plot(tempo, trecho, color="#1e3a8a", linewidth=1.0)
+    ax.plot(tempo, trecho_plot, color="#1e3a8a", linewidth=1.0)
     ax.set_xlabel("Tempo (s)")
     ax.set_ylabel("Amplitude (mV)")
     ax.set_title("Trecho central do ECG do participante")
@@ -105,10 +106,9 @@ O gráfico abaixo mostra um trecho central do sinal coletado nesta sessão, usad
 
 **Legenda de leitura rápida**
 - **Derivação do traçado:** Derivação II (DII).
-- **Leitura de valores negativos:** para considerar apenas magnitude, basta multiplicar o valor negativo por -1.
 - **Janela exibida:** {len(trecho) / fs:.1f} s (de {inicio_s:.1f} s até {fim_s:.1f} s da sessão).
 - **Amostras válidas no gráfico:** {len(trecho)} pontos a {fs} Hz.
-- **Amplitude observada:** de {float(np.min(trecho)):.2f} mV a {float(np.max(trecho)):.2f} mV.
+- **Amplitude observada:** de {float(np.min(trecho_plot)):.2f} mV a {float(np.max(trecho_plot)):.2f} mV.
 """
     return secao, caminho_figura
 
