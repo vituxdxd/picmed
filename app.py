@@ -472,10 +472,16 @@ def api_resultado(id_sessao: int):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
+    import socket
+    try:
+        host_ip = socket.gethostbyname(socket.gethostname())
+    except Exception:
+        host_ip = "0.0.0.0"
     print("=" * 60)
     print("  PICMED UNICEPLAC — Sistema de Coleta ECG/VFC v3")
     print("  Hardware: ESP32 + AD8232 + ADS1115 @ 860 SPS")
     print("  Protocolo: Binário (decimação 860→250 Hz)")
-    print("  Acesse: http://localhost:5000")
+    print(f"  Local:  http://localhost:5000")
+    print(f"  Rede:   http://{host_ip}:5000")
     print("=" * 60)
-    app.run(debug=True, use_reloader=False, threaded=True, port=5000)
+    app.run(host="0.0.0.0", debug=True, use_reloader=False, threaded=True, port=5000)
