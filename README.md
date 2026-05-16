@@ -28,7 +28,7 @@ O projeto é estruturado em 4 camadas principais:
 4.  **Camada 4: Servidor e Interface (`app.py`)**
     *   API REST em Flask para controle do sistema.
     *   Streaming de ECG em tempo real via *Server-Sent Events* (SSE).
-    *   Interface web responsiva para monitoramento e preenchimento de formulários (PSS-10).
+    *   Interface web para monitoramento, aplicação de questionários (PSS-10, IPAQ, PSQI e STAI) e emissão de relatório PDF.
 
 ## 🔌 Hardware
 
@@ -46,7 +46,9 @@ O sistema utiliza os seguintes componentes:
     *   `pyserial`: Comunicação com o hardware.
     *   `neurokit2`: Processamento de sinais biológicos.
     *   `numpy`: Cálculos numéricos.
-    *   `sqlite3`: Armazenamento de dados.
+    *   `matplotlib`: Geração do gráfico do trecho de ECG no relatório.
+    *   `pandoc` + `texlive-xetex`: Geração dos relatórios em PDF via Markdown + XeLaTeX.
+    *   `sqlite3` (stdlib do Python): Armazenamento de dados.
 
 ## 🚀 Como Executar
 
@@ -57,12 +59,15 @@ O sistema utiliza os seguintes componentes:
 ### 2. Configuração do Ambiente Python
 ```bash
 # Clone o repositório
-git clone https://github.com/seu-usuario/picmed-main.git
+git clone git@github.com:osnicavalcanti/picmed.git
 cd picmed-main
 
 # Crie um ambiente virtual
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate  # No Windows: .venv\Scripts\activate
+
+# Dependências de sistema para PDF (Linux)
+sudo apt-get install pandoc texlive-xetex
 
 # Instale as dependências
 pip install -r requirements.txt
@@ -70,7 +75,7 @@ pip install -r requirements.txt
 
 ### 3. Execução
 ```bash
-python app.py
+python3 app.py
 ```
 Acesse a interface no navegador através de: `http://localhost:5000`
 
@@ -78,9 +83,9 @@ Acesse a interface no navegador através de: `http://localhost:5000`
 
 *   **Aquisição:** Monitoramento em tempo real do sinal ECG e estimativa de BPM.
 *   **Participantes:** Cadastro anônimo com controle de ciclo acadêmico.
-*   **Coleta:** Gerenciamento de sessões com duração configurável.
-*   **Formulários:** Aplicação digital da escala PSS-10 e Inventário de Rotina.
-*   **Resultados:** Relatórios detalhados com métricas de VFC e classificação de estresse.
+*   **Coleta:** Gerenciamento de sessões e persistência em banco local (SQLite).
+*   **Questionários:** Aplicação digital de PSS-10, IPAQ, PSQI e STAI-S-6/STAI-T-6.
+*   **Resultados:** Relatórios em PDF com métricas de VFC, classificações e trecho visual do ECG (Derivação II).
 
 ## 📝 Licença
 

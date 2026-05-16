@@ -102,6 +102,8 @@ Não foi possível gerar o gráfico do ECG porque o trecho válido é curto dema
 
 O gráfico abaixo mostra um trecho central do sinal coletado nesta sessão, usado como referência visual para as métricas de VFC apresentadas na sequência.
 
+No total, as métricas de VFC foram calculadas a partir de 5 minutos de ECG.
+
 ![Trecho do ECG do participante]({caminho_figura.as_posix()})
 
 **Legenda de leitura rápida**
