@@ -425,6 +425,18 @@ def api_encerrar_sessao():
     return jsonify({"ok": True})
 
 
+@app.route("/api/pss10", methods=["POST"])
+def api_salvar_pss10():
+    """Salva apenas o score PSS-10 associado a uma sessão."""
+    d = request.json or {}
+    id_sessao = d.get("id_sessao")
+    pss10_score = d.get("pss10_score")
+    if not id_sessao or pss10_score is None:
+        return jsonify({"erro": "id_sessao e pss10_score são obrigatórios"}), 400
+    banco.salvar_inventario(id_sessao, {"pss10_score": pss10_score})
+    return jsonify({"ok": True})
+
+
 @app.route("/api/inventario", methods=["POST"])
 def api_salvar_inventario():
     d = request.json or {}
@@ -433,6 +445,74 @@ def api_salvar_inventario():
         return jsonify({"erro": "id_sessao é obrigatório"}), 400
     banco.salvar_inventario(id_sessao, d)
     return jsonify({"ok": True})
+
+
+@app.route("/api/ipaq", methods=["POST"])
+def api_salvar_ipaq():
+    d = request.json or {}
+    id_sessao = d.get("id_sessao")
+    if not id_sessao:
+        return jsonify({"erro": "id_sessao é obrigatório"}), 400
+    ipaq_calc = processamento.calcular_ipaq(d)
+    dados_para_banco = {**d, **ipaq_calc}
+    banco.salvar_ipaq(id_sessao, dados_para_banco)
+    return jsonify({"ok": True, "ipaq": ipaq_calc})
+
+
+@app.route("/api/ipaq/<int:id_sessao>")
+def api_obter_ipaq(id_sessao: int):
+    ipaq = banco.obter_ipaq(id_sessao)
+    if not ipaq:
+        return jsonify({"erro": "IPAQ não encontrado para esta sessão."}), 404
+    return jsonify(ipaq)
+
+
+@app.route("/api/stai", methods=["POST"])
+def api_salvar_stai():
+    d = request.json or {}
+    id_sessao = d.get("id_sessao")
+    if not id_sessao:
+        return jsonify({"erro": "id_sessao é obrigatório"}), 400
+    stai_calc = processamento.calcular_stai(d)
+    dados_para_banco = {**d, **stai_calc}
+    banco.salvar_stai(id_sessao, dados_para_banco)
+    return jsonify({"ok": True, "stai": stai_calc})
+
+
+@app.route("/api/stai/<int:id_sessao>")
+def api_obter_stai(id_sessao: int):
+    stai = banco.obter_stai(id_sessao)
+    if not stai:
+        return jsonify({"erro": "STAI não encontrado para esta sessão."}), 404
+    return jsonify(stai)
+
+
+@app.route("/api/psqi", methods=["POST"])
+def api_salvar_psqi():
+    """
+    Salva as respostas do PSQI associadas a uma sessão.
+    Calcula os 7 componentes e o escore global via camada3.
+    Espera JSON com id_sessao + respostas brutas do questionário.
+    """
+    d = request.json or {}
+    id_sessao = d.get("id_sessao")
+    if not id_sessao:
+        return jsonify({"erro": "id_sessao é obrigatório"}), 400
+
+    # Calcula os escores
+    psqi_calc = processamento.calcular_psqi(d)
+    # Mescla respostas brutas + escores calculados
+    dados_para_banco = {**d, **psqi_calc}
+    banco.salvar_psqi(id_sessao, dados_para_banco)
+    return jsonify({"ok": True, "psqi": psqi_calc})
+
+
+@app.route("/api/psqi/<int:id_sessao>")
+def api_obter_psqi(id_sessao: int):
+    psqi = banco.obter_psqi(id_sessao)
+    if not psqi:
+        return jsonify({"erro": "PSQI não encontrado para esta sessão."}), 404
+    return jsonify(psqi)
 
 
 @app.route("/api/banco/stats")

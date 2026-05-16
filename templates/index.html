@@ -316,18 +316,6 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
   </div>
 
   <div id="formArea" style="display:none;">
-    <!-- PSS-10 -->
-    <div class="card">
-      <div class="card-title">
-        Escala de Estresse Percebido (PSS-10)
-        <span class="badge badge-purple" style="margin-left:auto;">Score: <span id="pssScore">0</span>/40</span>
-      </div>
-      <p style="font-size:0.82rem;color:var(--text-mute);margin-bottom:0.8rem;">
-        No último mês, com que frequência você... (0 = Nunca, 1 = Quase nunca, 2 = Às vezes, 3 = Frequentemente, 4 = Muito frequentemente)
-      </p>
-      <div id="pssContainer"></div>
-    </div>
-
     <!-- Inventário de Rotina -->
     <div class="card">
       <div class="card-title">Inventário de Rotina</div>
@@ -358,15 +346,6 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
           <select class="form-select" id="selEtilismo"><option value="0">Não</option><option value="1">Sim</option></select>
         </div>
         <div class="form-group">
-          <label class="form-label">IPAQ-S (Nível Atividade)</label>
-          <select class="form-select" id="selIPAQ">
-            <option value="sedentario">Sedentário</option>
-            <option value="insuficiente">Insuficientemente ativo</option>
-            <option value="ativo">Ativo</option>
-            <option value="muito_ativo">Muito ativo</option>
-          </select>
-        </div>
-        <div class="form-group">
           <label class="form-label">Psicoterapia</label>
           <select class="form-select" id="selPsicoterapia" onchange="togglePsicoterapiaFreq()"><option value="0">Não</option><option value="1">Sim</option></select>
         </div>
@@ -381,7 +360,267 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
           </select>
         </div>
       </div>
-      <button class="btn btn-primary" onclick="salvarFormularios()" style="margin-top:0.5rem;">Salvar PSS-10 + Inventário</button>
+      <button class="btn btn-primary" onclick="salvarInventario()" style="margin-top:0.5rem;">Salvar Inventário</button>
+    </div>
+
+    <!-- PSS-10 -->
+    <div class="card">
+      <div class="card-title">
+        Escala de Estresse Percebido (PSS-10)
+        <span class="badge badge-purple" style="margin-left:auto;">Score: <span id="pssScore">0</span>/40</span>
+      </div>
+      <p style="font-size:0.82rem;color:var(--text-mute);margin-bottom:0.8rem;">
+        No último mês, com que frequência você... (0 = Nunca, 1 = Quase nunca, 2 = Às vezes, 3 = Frequentemente, 4 = Muito frequentemente)
+      </p>
+      <div id="pssContainer"></div>
+      <button class="btn btn-primary" onclick="salvarPSS10()" style="margin-top:0.5rem;">Salvar PSS-10</button>
+    </div>
+
+    <!-- IPAQ — Questionário Internacional de Atividade Física -->
+    <div class="card">
+      <div class="card-title">
+        IPAQ — Atividade Física (versão curta)
+        <span class="badge badge-green" style="margin-left:auto;" id="badgeIPAQForm">—</span>
+      </div>
+      <p style="font-size:0.82rem;color:var(--text-mute);margin-bottom:0.8rem;">
+        As perguntas são relativas às atividades físicas realizadas <strong>na última semana</strong> (últimos 7 dias).
+      </p>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">1. Dias de atividade vigorosa (ex: correr, nadar rápido)</label>
+          <input class="form-input" id="ipaqQ1" type="number" min="0" max="7" value="0" onchange="atualizarIPAQBadge()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">2. Minutos/dia de atividade vigorosa</label>
+          <input class="form-input" id="ipaqQ2" type="number" min="0" max="600" value="0" onchange="atualizarIPAQBadge()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">3. Dias de atividade moderada (ex: pedalar leve, varrer)</label>
+          <input class="form-input" id="ipaqQ3" type="number" min="0" max="7" value="0" onchange="atualizarIPAQBadge()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">4. Minutos/dia de atividade moderada</label>
+          <input class="form-input" id="ipaqQ4" type="number" min="0" max="600" value="0" onchange="atualizarIPAQBadge()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">5. Dias de caminhada (≥10 min contínuos)</label>
+          <input class="form-input" id="ipaqQ5" type="number" min="0" max="7" value="0" onchange="atualizarIPAQBadge()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">6. Minutos/dia de caminhada</label>
+          <input class="form-input" id="ipaqQ6" type="number" min="0" max="600" value="0" onchange="atualizarIPAQBadge()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">7. Horas sentado (dia de semana)</label>
+          <input class="form-input" id="ipaqQ7h" type="number" min="0" max="24" value="0" onchange="atualizarIPAQBadge()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Minutos sentado (adicional)</label>
+          <input class="form-input" id="ipaqQ7m" type="number" min="0" max="59" value="0" onchange="atualizarIPAQBadge()">
+        </div>
+      </div>
+      <button class="btn btn-teal" onclick="salvarIPAQ()" style="margin-top:0.5rem;">Salvar IPAQ</button>
+    </div>
+
+    <!-- STAI-S-6 e STAI-T-6 -->
+    <div class="card">
+      <div class="card-title">
+        STAI-S-6 e STAI-T-6 — Ansiedade Estado/Traço
+        <span class="badge" id="badgeSTAIForm" style="margin-left:auto;">—</span>
+      </div>
+      <p style="font-size:0.82rem;color:var(--text-mute);margin-bottom:0.4rem;">
+        <strong>Parte 1 (Estado):</strong> Como você se sente <strong>agora, neste momento</strong>?
+      </p>
+      <div class="grid-2" style="margin-bottom:0.8rem;">
+        <div class="form-group">
+          <label class="form-label">Sinto-me calmo(a)</label>
+          <select class="form-select" id="staiS1" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Absolutamente não</option><option value="2">2 — Um pouco</option>
+            <option value="3">3 — Bastante</option><option value="4">4 — Muitíssimo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estou tenso(a)</label>
+          <select class="form-select" id="staiS3" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Absolutamente não</option><option value="2">2 — Um pouco</option>
+            <option value="3">3 — Bastante</option><option value="4">4 — Muitíssimo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sinto-me à vontade</label>
+          <select class="form-select" id="staiS5" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Absolutamente não</option><option value="2">2 — Um pouco</option>
+            <option value="3">3 — Bastante</option><option value="4">4 — Muitíssimo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sinto-me nervoso(a)</label>
+          <select class="form-select" id="staiS12" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Absolutamente não</option><option value="2">2 — Um pouco</option>
+            <option value="3">3 — Bastante</option><option value="4">4 — Muitíssimo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estou descontraído(a)</label>
+          <select class="form-select" id="staiS15" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Absolutamente não</option><option value="2">2 — Um pouco</option>
+            <option value="3">3 — Bastante</option><option value="4">4 — Muitíssimo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estou preocupado(a)</label>
+          <select class="form-select" id="staiS17" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Absolutamente não</option><option value="2">2 — Um pouco</option>
+            <option value="3">3 — Bastante</option><option value="4">4 — Muitíssimo</option>
+          </select>
+        </div>
+      </div>
+
+      <p style="font-size:0.82rem;color:var(--text-mute);margin-bottom:0.4rem;border-top:1px solid var(--border-light);padding-top:0.6rem;">
+        <strong>Parte 2 (Traço):</strong> Como você <strong>geralmente</strong> se sente?
+      </p>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Sou calmo(a), ponderado(a) e senhor(a) de mim</label>
+          <select class="form-select" id="staiT7" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Quase nunca</option><option value="2">2 — Às vezes</option>
+            <option value="3">3 — Frequentemente</option><option value="4">4 — Quase sempre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Preocupo-me demais com coisas sem importância</label>
+          <select class="form-select" id="staiT9" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Quase nunca</option><option value="2">2 — Às vezes</option>
+            <option value="3">3 — Frequentemente</option><option value="4">4 — Quase sempre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sinto-me uma pessoa segura</label>
+          <select class="form-select" id="staiT13" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Quase nunca</option><option value="2">2 — Às vezes</option>
+            <option value="3">3 — Frequentemente</option><option value="4">4 — Quase sempre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fico tenso(a) e perturbado(a) pensando em problemas</label>
+          <select class="form-select" id="staiT20" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Quase nunca</option><option value="2">2 — Às vezes</option>
+            <option value="3">3 — Frequentemente</option><option value="4">4 — Quase sempre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sinto-me nervoso(a) e inquieto(a)</label>
+          <select class="form-select" id="staiT21" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Quase nunca</option><option value="2">2 — Às vezes</option>
+            <option value="3">3 — Frequentemente</option><option value="4">4 — Quase sempre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tomo decisões facilmente</label>
+          <select class="form-select" id="staiT25" onchange="atualizarSTAIFormBadge()">
+            <option value="1">1 — Quase nunca</option><option value="2">2 — Às vezes</option>
+            <option value="3">3 — Frequentemente</option><option value="4">4 — Quase sempre</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-teal" onclick="salvarSTAI()" style="margin-top:0.5rem;">Salvar STAI</button>
+    </div>
+
+    <!-- PSQI — Índice de Qualidade do Sono de Pittsburgh -->
+    <div class="card">
+      <div class="card-title">
+        Índice de Qualidade do Sono de Pittsburgh (PSQI)
+        <span class="badge badge-purple" style="margin-left:auto;">Escore: <span id="psqiScore">—</span>/21</span>
+      </div>
+      <p style="font-size:0.82rem;color:var(--text-mute);margin-bottom:0.8rem;">
+        As perguntas são relativas aos seus hábitos de sono durante <strong>o último mês</strong>.
+      </p>
+
+      <!-- Q1–Q4: Horários e durações -->
+      <div class="grid-2" style="margin-bottom:0.6rem;">
+        <div class="form-group">
+          <label class="form-label">1. Hora usual de deitar</label>
+          <input class="form-input" id="psqiQ1" type="time" value="23:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">2. Minutos para adormecer</label>
+          <input class="form-input" id="psqiQ2" type="number" min="0" max="240" value="15">
+        </div>
+        <div class="form-group">
+          <label class="form-label">3. Hora usual de levantar</label>
+          <input class="form-input" id="psqiQ3" type="time" value="07:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">4. Horas de sono por noite</label>
+          <input class="form-input" id="psqiQ4" type="number" min="0" max="24" step="0.5" value="7">
+        </div>
+      </div>
+
+      <!-- Q5: Distúrbios do sono (a–j) -->
+      <div class="card-title" style="font-size:0.88rem;margin-bottom:0.4rem;">
+        5. Frequência de dificuldade para dormir porque...
+      </div>
+      <div style="display:flex;gap:0.3rem;justify-content:flex-end;font-size:0.60rem;color:var(--text-mute);margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.2px;">
+        <span style="width:52px;text-align:center;">Nenhuma</span>
+        <span style="width:52px;text-align:center;"><1×/sem</span>
+        <span style="width:52px;text-align:center;">1-2×/sem</span>
+        <span style="width:52px;text-align:center;">≥3×/sem</span>
+      </div>
+      <div id="psqiQ5Container"></div>
+
+      <!-- Q6–Q9 -->
+      <div class="grid-2" style="margin-top:0.8rem;">
+        <div class="form-group">
+          <label class="form-label">6. Qualidade do sono (geral)</label>
+          <select class="form-select" id="psqiQ6" onchange="atualizarPSQIScore()">
+            <option value="0">Muito boa</option>
+            <option value="1">Boa</option>
+            <option value="2">Ruim</option>
+            <option value="3">Muito ruim</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">7. Uso de remédio para dormir</label>
+          <select class="form-select" id="psqiQ7" onchange="atualizarPSQIScore()">
+            <option value="0">Nenhuma vez</option>
+            <option value="1">Menos de 1×/semana</option>
+            <option value="2">1 a 2×/semana</option>
+            <option value="3">3×/semana ou mais</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">8. Dificuldade ficar acordado (atividades)</label>
+          <select class="form-select" id="psqiQ8" onchange="atualizarPSQIScore()">
+            <option value="0">Nenhuma vez</option>
+            <option value="1">Menos de 1×/semana</option>
+            <option value="2">1 a 2×/semana</option>
+            <option value="3">3×/semana ou mais</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">9. Problema com entusiasmo/ânimo</label>
+          <select class="form-select" id="psqiQ9" onchange="atualizarPSQIScore()">
+            <option value="0">Nenhuma dificuldade</option>
+            <option value="1">Problema leve</option>
+            <option value="2">Problema razoável</option>
+            <option value="3">Grande problema</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Q10: Parceiro de cama -->
+      <div class="form-group" style="margin-top:0.8rem;">
+        <label class="form-label">10. Você tem parceiro(a) ou colega de quarto?</label>
+        <select class="form-select" id="psqiQ10">
+          <option value="0">Não</option>
+          <option value="1">Parceiro/colega em outro quarto</option>
+          <option value="2">Parceiro no mesmo quarto, outra cama</option>
+          <option value="3">Parceiro na mesma cama</option>
+        </select>
+      </div>
+
+      <button class="btn btn-teal" onclick="salvarPSQI()" style="margin-top:0.5rem;">Salvar PSQI</button>
     </div>
   </div>
 </div>
@@ -392,7 +631,7 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
     <div class="card-title">Sessões Realizadas</div>
     <div style="overflow-x:auto;">
       <table class="tbl">
-        <thead><tr><th>ID</th><th>Participante</th><th>Ciclo</th><th>Início</th><th>Amostras</th><th>SI Baevsky</th><th>PSS-10</th><th>Status</th><th>Ações</th></tr></thead>
+        <thead><tr><th>ID</th><th>Participante</th><th>Ciclo</th><th>Início</th><th>Amostras</th><th>SI Baevsky</th><th>PSS-10</th><th>PSQI</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody id="tbSessoes"></tbody>
       </table>
     </div>
@@ -415,6 +654,55 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
         <div class="stat"><div class="stat-value" id="rMxDMn">—</div><div class="stat-label">MxDMn (ms)</div></div>
       </div>
       <div id="descSI" style="margin-top:1rem;padding:0.8rem;border-radius:var(--radius-sm);font-size:0.84rem;"></div>
+    </div>
+
+    <!-- IPAQ nos resultados -->
+    <div class="card" id="ipaqResultCard" style="display:none;">
+      <div class="card-title">
+        IPAQ — Atividade Física
+        <span class="badge" id="badgeIPAQ" style="margin-left:auto;">—</span>
+      </div>
+      <div class="grid-4">
+        <div class="stat"><div class="stat-value" id="rIPAQMet">—</div><div class="stat-label">MET-min/semana</div></div>
+        <div class="stat"><div class="stat-value" id="rIPAQVig">—</div><div class="stat-label">MET Vigorosa</div></div>
+        <div class="stat"><div class="stat-value" id="rIPAQMod">—</div><div class="stat-label">MET Moderada</div></div>
+        <div class="stat"><div class="stat-value" id="rIPAQCaminhada">—</div><div class="stat-label">MET Caminhada</div></div>
+        <div class="stat"><div class="stat-value" id="rIPAQSentado">—</div><div class="stat-label">Min Sentado/dia</div></div>
+        <div class="stat"><div class="stat-value" id="rIPAQAtencao">—</div><div class="stat-label">Classificação</div></div>
+      </div>
+    </div>
+
+    <!-- STAI nos resultados -->
+    <div class="card" id="staiResultCard" style="display:none;">
+      <div class="card-title">
+        STAI — Ansiedade Estado/Traço
+        <span class="badge" id="badgeSTAI" style="margin-left:auto;">—</span>
+      </div>
+      <div class="grid-4">
+        <div class="stat"><div class="stat-value" id="rSTAIS">—</div><div class="stat-label">Escore Estado (6-24)</div></div>
+        <div class="stat"><div class="stat-value" id="rSTAIT">—</div><div class="stat-label">Escore Traço (6-24)</div></div>
+        <div class="stat"><div class="stat-value" id="rSTAISClass">—</div><div class="stat-label">Classificação Estado</div></div>
+        <div class="stat"><div class="stat-value" id="rSTAITClass">—</div><div class="stat-label">Classificação Traço</div></div>
+      </div>
+    </div>
+
+    <!-- PSQI nos resultados -->
+    <div class="card" id="psqiResultCard" style="display:none;">
+      <div class="card-title">
+        PSQI — Qualidade do Sono
+        <span class="badge" id="badgePSQI" style="margin-left:auto;">—</span>
+      </div>
+      <div class="grid-4">
+        <div class="stat"><div class="stat-value" id="rPSQIEscore">—</div><div class="stat-label">Escore Global /21</div></div>
+        <div class="stat"><div class="stat-value" id="rPSQIC1">—</div><div class="stat-label">Qualidade Subjetiva</div></div>
+        <div class="stat"><div class="stat-value" id="rPSQIC2">—</div><div class="stat-label">Latência do Sono</div></div>
+        <div class="stat"><div class="stat-value" id="rPSQIC3">—</div><div class="stat-label">Duração do Sono</div></div>
+        <div class="stat"><div class="stat-value" id="rPSQIC4">—</div><div class="stat-label">Eficiência Habitual</div></div>
+        <div class="stat"><div class="stat-value" id="rPSQIC5">—</div><div class="stat-label">Distúrbios do Sono</div></div>
+        <div class="stat"><div class="stat-value" id="rPSQIC6">—</div><div class="stat-label">Uso de Remédio</div></div>
+        <div class="stat"><div class="stat-value" id="rPSQIC7">—</div><div class="stat-label">Disfunção Diurna</div></div>
+      </div>
+      <div id="descPSQI" style="margin-top:0.8rem;padding:0.6rem 0.8rem;border-radius:var(--radius-sm);font-size:0.84rem;"></div>
     </div>
   </div>
 </div>
@@ -506,6 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initECGChart();
   initPSS();
+  initPSQI();
   carregarPortas();
   carregarParticipantes();
   carregarSessoes();
@@ -926,6 +1215,251 @@ function getPSSScore() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// PSQI
+// ═══════════════════════════════════════════════════════════════
+const PSQI_Q5_ITEMS = [
+  { key: 'q5a', label: 'a) Não conseguiu adormecer em até 30 min' },
+  { key: 'q5b', label: 'b) Acordou no meio da noite ou de manhã cedo' },
+  { key: 'q5c', label: 'c) Precisou levantar para ir ao banheiro' },
+  { key: 'q5d', label: 'd) Não conseguiu respirar confortavelmente' },
+  { key: 'q5e', label: 'e) Tossiu ou roncou forte' },
+  { key: 'q5f', label: 'f) Sentiu muito frio' },
+  { key: 'q5g', label: 'g) Sentiu muito calor' },
+  { key: 'q5h', label: 'h) Teve sonhos ruins' },
+  { key: 'q5i', label: 'i) Teve dor' },
+  { key: 'q5j', label: 'j) Outra(s) razão(ões)' },
+];
+
+function initPSQI() {
+  const container = document.getElementById('psqiQ5Container');
+  PSQI_Q5_ITEMS.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'pss-row';
+    row.innerHTML = `
+      <div class="pss-question">${item.label}</div>
+      <div class="pss-options">
+        ${[0,1,2,3].map(v => {
+          const labels = ['Nenhuma', '<1×/sem', '1-2×/sem', '≥3×/sem'];
+          return `<div class="pss-opt" data-q="${item.key}" data-v="${v}" title="${labels[v]}">${v}</div>`;
+        }).join('')}
+      </div>`;
+    container.appendChild(row);
+  });
+  container.addEventListener('click', (e) => {
+    const opt = e.target.closest('.pss-opt');
+    if (!opt) return;
+    opt.parentNode.querySelectorAll('.pss-opt').forEach(o => o.classList.remove('sel'));
+    opt.classList.add('sel');
+    atualizarPSQIScore();
+  });
+  // Seleciona valor 0 por padrão em todos os itens Q5
+  container.querySelectorAll('.pss-opt[data-v="0"]').forEach(o => o.classList.add('sel'));
+}
+
+function _parseHora(horaStr) {
+  try {
+    const [h, m] = horaStr.split(':').map(Number);
+    return h + m / 60;
+  } catch(e) { return 0; }
+}
+
+function calcularPSQIScoreLocal() {
+  // C1: Q6 (qualidade subjetiva)
+  const q6 = parseInt(document.getElementById('psqiQ6').value) || 0;
+  const c1 = q6;
+
+  // C2: Q2 (min adormecer) + Q5a
+  const q2 = parseInt(document.getElementById('psqiQ2').value) || 0;
+  let scoreQ2 = 0;
+  if (q2 <= 15) scoreQ2 = 0;
+  else if (q2 <= 30) scoreQ2 = 1;
+  else if (q2 <= 60) scoreQ2 = 2;
+  else scoreQ2 = 3;
+
+  const q5a = _getPSQIQ5Value('q5a');
+  const somaC2 = scoreQ2 + q5a;
+  let c2 = 0;
+  if (somaC2 === 0) c2 = 0;
+  else if (somaC2 <= 2) c2 = 1;
+  else if (somaC2 <= 4) c2 = 2;
+  else c2 = 3;
+
+  // C3: Q4 (horas de sono)
+  const q4 = parseFloat(document.getElementById('psqiQ4').value) || 0;
+  let c3 = 0;
+  if (q4 > 7) c3 = 0;
+  else if (q4 >= 6) c3 = 1;
+  else if (q4 >= 5) c3 = 2;
+  else c3 = 3;
+
+  // C4: Eficiência
+  const horaDeitar = _parseHora(document.getElementById('psqiQ1').value || '00:00');
+  const horaLevantar = _parseHora(document.getElementById('psqiQ3').value || '00:00');
+  const horasLeito = (horaLevantar < horaDeitar) ? (horaLevantar + 24 - horaDeitar) : (horaLevantar - horaDeitar);
+  const eficiencia = horasLeito > 0 ? (q4 / horasLeito) * 100 : 0;
+  let c4 = 0;
+  if (eficiencia > 85) c4 = 0;
+  else if (eficiencia >= 75) c4 = 1;
+  else if (eficiencia >= 65) c4 = 2;
+  else c4 = 3;
+
+  // C5: Q5b a Q5j
+  let somaDisturbios = 0;
+  for (const item of PSQI_Q5_ITEMS) {
+    if (item.key !== 'q5a') somaDisturbios += _getPSQIQ5Value(item.key);
+  }
+  let c5 = 0;
+  if (somaDisturbios === 0) c5 = 0;
+  else if (somaDisturbios <= 9) c5 = 1;
+  else if (somaDisturbios <= 18) c5 = 2;
+  else c5 = 3;
+
+  // C6: Q7
+  const q7 = parseInt(document.getElementById('psqiQ7').value) || 0;
+  const c6 = q7;
+
+  // C7: Q8 + Q9
+  const q8 = parseInt(document.getElementById('psqiQ8').value) || 0;
+  const q9 = parseInt(document.getElementById('psqiQ9').value) || 0;
+  const somaDiurna = q8 + q9;
+  let c7 = 0;
+  if (somaDiurna === 0) c7 = 0;
+  else if (somaDiurna <= 2) c7 = 1;
+  else if (somaDiurna <= 4) c7 = 2;
+  else c7 = 3;
+
+  const escore = c1 + c2 + c3 + c4 + c5 + c6 + c7;
+  return { escore, c1, c2, c3, c4, c5, c6, c7, eficiencia };
+}
+
+function _getPSQIQ5Value(key) {
+  const el = document.querySelector(`#psqiQ5Container .pss-opt.sel[data-q="${key}"]`);
+  return el ? parseInt(el.dataset.v) : 0;
+}
+
+function atualizarPSQIScore() {
+  const { escore } = calcularPSQIScoreLocal();
+  document.getElementById('psqiScore').textContent = escore;
+  // Colore baseado na classificação
+  const scoreEl = document.getElementById('psqiScore');
+  if (escore <= 5) scoreEl.style.color = 'var(--green)';
+  else if (escore <= 10) scoreEl.style.color = 'var(--amber)';
+  else scoreEl.style.color = 'var(--red)';
+}
+
+async function salvarPSQI() {
+  const sid = document.getElementById('selSessaoForm').value;
+  if (!sid) return toast('Selecione uma sessão', 'err');
+
+  const { escore, c1, c2, c3, c4, c5, c6, c7, eficiencia } = calcularPSQIScoreLocal();
+
+  const dados = {
+    id_sessao: parseInt(sid),
+    q1_hora_deitar: document.getElementById('psqiQ1').value,
+    q2_min_adormecer: parseInt(document.getElementById('psqiQ2').value) || 0,
+    q3_hora_levantar: document.getElementById('psqiQ3').value,
+    q4_horas_sono: parseFloat(document.getElementById('psqiQ4').value) || 0,
+    q5a: _getPSQIQ5Value('q5a'), q5b: _getPSQIQ5Value('q5b'),
+    q5c: _getPSQIQ5Value('q5c'), q5d: _getPSQIQ5Value('q5d'),
+    q5e: _getPSQIQ5Value('q5e'), q5f: _getPSQIQ5Value('q5f'),
+    q5g: _getPSQIQ5Value('q5g'), q5h: _getPSQIQ5Value('q5h'),
+    q5i: _getPSQIQ5Value('q5i'), q5j: _getPSQIQ5Value('q5j'),
+    q6_qualidade: parseInt(document.getElementById('psqiQ6').value) || 0,
+    q7_medicamento: parseInt(document.getElementById('psqiQ7').value) || 0,
+    q8_ficar_acordado: parseInt(document.getElementById('psqiQ8').value) || 0,
+    q9_entusiasmo: parseInt(document.getElementById('psqiQ9').value) || 0,
+    q10_parceiro: parseInt(document.getElementById('psqiQ10').value) || 0,
+  };
+
+  const r = await api('/api/psqi', 'POST', dados);
+  if (r.ok) toast(`PSQI salvo — Escore: ${r.psqi.escore_global}/21 (${r.psqi.classificacao})`);
+  else toast(r.erro || 'Erro ao salvar PSQI', 'err');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// IPAQ
+// ═══════════════════════════════════════════════════════════════
+function atualizarIPAQBadge() {
+  const q1 = parseInt(document.getElementById('ipaqQ1').value) || 0;
+  const q2 = parseInt(document.getElementById('ipaqQ2').value) || 0;
+  const q3 = parseInt(document.getElementById('ipaqQ3').value) || 0;
+  const q4 = parseInt(document.getElementById('ipaqQ4').value) || 0;
+  const q5 = parseInt(document.getElementById('ipaqQ5').value) || 0;
+  const q6 = parseInt(document.getElementById('ipaqQ6').value) || 0;
+  const metTotal = (8 * q2 * q1) + (4 * q4 * q3) + (3.3 * q6 * q5);
+  let cls, label;
+  if (metTotal === 0) { cls = 'badge-gray'; label = 'Sedentário'; }
+  else if (metTotal < 600) { cls = 'badge-amber'; label = 'Insuficiente'; }
+  else if (metTotal < 1500) { cls = 'badge-blue'; label = 'Ativo'; }
+  else { cls = 'badge-green'; label = 'Muito Ativo'; }
+  const badge = document.getElementById('badgeIPAQForm');
+  if (badge) { badge.className = `badge ${cls}`; badge.textContent = label; }
+}
+
+async function salvarIPAQ() {
+  const sid = document.getElementById('selSessaoForm').value;
+  if (!sid) return toast('Selecione uma sessão', 'err');
+  const dados = {
+    id_sessao: parseInt(sid),
+    q1_vigorosa_dias: parseInt(document.getElementById('ipaqQ1').value) || 0,
+    q2_vigorosa_min:  parseInt(document.getElementById('ipaqQ2').value) || 0,
+    q3_moderada_dias: parseInt(document.getElementById('ipaqQ3').value) || 0,
+    q4_moderada_min:  parseInt(document.getElementById('ipaqQ4').value) || 0,
+    q5_caminhada_dias:parseInt(document.getElementById('ipaqQ5').value) || 0,
+    q6_caminhada_min: parseInt(document.getElementById('ipaqQ6').value) || 0,
+    q7_sentado_horas: parseInt(document.getElementById('ipaqQ7h').value) || 0,
+    q7_sentado_min:   parseInt(document.getElementById('ipaqQ7m').value) || 0,
+  };
+  const r = await api('/api/ipaq', 'POST', dados);
+  if (r.ok) toast(`IPAQ salvo — ${r.ipaq.met_total} MET-min/sem (${r.ipaq.classificacao})`);
+  else toast(r.erro || 'Erro ao salvar IPAQ', 'err');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STAI
+// ═══════════════════════════════════════════════════════════════
+function atualizarSTAIFormBadge() {
+  const _inv = v => 5 - v;
+  const ss = [
+    _inv(parseInt(document.getElementById('staiS1').value)||1), parseInt(document.getElementById('staiS3').value)||1,
+    _inv(parseInt(document.getElementById('staiS5').value)||1), parseInt(document.getElementById('staiS12').value)||1,
+    _inv(parseInt(document.getElementById('staiS15').value)||1), parseInt(document.getElementById('staiS17').value)||1,
+  ];
+  const scoreS = ss.reduce((a,b)=>a+b,0);
+  const st = [
+    _inv(parseInt(document.getElementById('staiT7').value)||1), parseInt(document.getElementById('staiT9').value)||1,
+    _inv(parseInt(document.getElementById('staiT13').value)||1), parseInt(document.getElementById('staiT20').value)||1,
+    parseInt(document.getElementById('staiT21').value)||1, _inv(parseInt(document.getElementById('staiT25').value)||1),
+  ];
+  const scoreT = st.reduce((a,b)=>a+b,0);
+  const badge = document.getElementById('badgeSTAIForm');
+  if (badge) { badge.textContent = `S:${scoreS} T:${scoreT}`; }
+}
+
+async function salvarSTAI() {
+  const sid = document.getElementById('selSessaoForm').value;
+  if (!sid) return toast('Selecione uma sessão', 'err');
+  const dados = {
+    id_sessao: parseInt(sid),
+    s1: parseInt(document.getElementById('staiS1').value)||1,
+    s3: parseInt(document.getElementById('staiS3').value)||1,
+    s5: parseInt(document.getElementById('staiS5').value)||1,
+    s12: parseInt(document.getElementById('staiS12').value)||1,
+    s15: parseInt(document.getElementById('staiS15').value)||1,
+    s17: parseInt(document.getElementById('staiS17').value)||1,
+    t7: parseInt(document.getElementById('staiT7').value)||1,
+    t9: parseInt(document.getElementById('staiT9').value)||1,
+    t13: parseInt(document.getElementById('staiT13').value)||1,
+    t20: parseInt(document.getElementById('staiT20').value)||1,
+    t21: parseInt(document.getElementById('staiT21').value)||1,
+    t25: parseInt(document.getElementById('staiT25').value)||1,
+  };
+  const r = await api('/api/stai', 'POST', dados);
+  if (r.ok) toast(`STAI salvo — S:${r.stai.score_s} T:${r.stai.score_t}`);
+  else toast(r.erro || 'Erro ao salvar STAI', 'err');
+}
+
+// ═══════════════════════════════════════════════════════════════
 // COLETA FORMS
 // ═══════════════════════════════════════════════════════════════
 async function carregarSessoesForm() {
@@ -954,11 +1488,19 @@ function onSessaoSelecionada() {
   document.getElementById('formArea').style.display = v ? 'block' : 'none';
 }
 
-async function salvarFormularios() {
+async function salvarPSS10() {
   const sid = document.getElementById('selSessaoForm').value;
   if (!sid) return toast('Selecione uma sessão', 'err');
   const pss = getPSSScore();
   if (pss === null) return toast('Responda todas as questões do PSS-10', 'err');
+  const r = await api('/api/pss10', 'POST', { id_sessao: parseInt(sid), pss10_score: pss });
+  if (r.ok) toast('PSS-10 salvo');
+  else toast(r.erro || 'Erro ao salvar PSS-10', 'err');
+}
+
+async function salvarInventario() {
+  const sid = document.getElementById('selSessaoForm').value;
+  if (!sid) return toast('Selecione uma sessão', 'err');
 
   const tabagismo = parseInt(document.getElementById('selTabagismo').value);
   const tabagismoFreq = tabagismo === 1 ? (document.getElementById('selTabagismoFreq').value || null) : null;
@@ -968,19 +1510,17 @@ async function salvarFormularios() {
 
   const dados = {
     id_sessao:         parseInt(sid),
-    pss10_score:       pss,
     cafeina_mg:        parseInt(document.getElementById('inpCafeina').value) || 0,
     tabagismo:         tabagismo,
     tabagismo_freq:    tabagismoFreq,
     etilismo_24h:      parseInt(document.getElementById('selEtilismo').value),
     medicacao:         document.getElementById('inpMedicacao').value || 'nenhuma',
-    ipaq_nivel:        document.getElementById('selIPAQ').value,
     psicoterapia:      psicoterapia,
     psicoterapia_freq: psicoterapiaFreq,
   };
   const r = await api('/api/inventario', 'POST', dados);
-  if (r.ok) toast('PSS-10 e Inventário salvos com sucesso');
-  else toast(r.erro || 'Erro ao salvar', 'err');
+  if (r.ok) toast('Inventário salvo');
+  else toast(r.erro || 'Erro ao salvar inventário', 'err');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1002,6 +1542,7 @@ async function carregarSessoes() {
       <td style="font-size:0.78rem;">${s.inicio_em||'—'}</td>
       <td>${(s.total_amostras||0).toLocaleString()}</td>
       <td style="font-weight:600;">${si}</td><td>${pss}</td>
+      <td>${s.psqi_escore != null ? s.psqi_escore : '—'}</td>
       <td>${statusBadge}</td>
       <td>
         ${s.fim_em && !s.processada ? `<button class="btn btn-primary btn-sm" onclick="processarSessao(${s.id})">Processar</button>` : ''}
@@ -1022,9 +1563,20 @@ async function processarSessao(id) {
 }
 
 async function verResultado(id) {
-  const r = await api(`/api/resultado/${id}`);
+  const [r, psqi, ipaq, stai] = await Promise.all([
+    api(`/api/resultado/${id}`),
+    api(`/api/psqi/${id}`).catch(() => null),
+    api(`/api/ipaq/${id}`).catch(() => null),
+    api(`/api/stai/${id}`).catch(() => null),
+  ]);
   if (r.erro) { toast(r.erro, 'err'); return; }
   mostrarResultado(r);
+  if (psqi && !psqi.erro) mostrarPSQIResultado(psqi);
+  else document.getElementById('psqiResultCard').style.display = 'none';
+  if (ipaq && !ipaq.erro) mostrarIPAQResultado(ipaq);
+  else document.getElementById('ipaqResultCard').style.display = 'none';
+  if (stai && !stai.erro) mostrarSTAIResultado(stai);
+  else document.getElementById('staiResultCard').style.display = 'none';
 }
 
 async function excluirParticipante(idParticipante, codigo='') {
@@ -1077,6 +1629,85 @@ function mostrarResultado(r) {
   desc.style.background = (interp.cor || '#ccc') + '11';
   desc.style.color = interp.cor || '#666';
   desc.innerHTML = `<strong>${interp.rotulo||''}:</strong> ${interp.descricao||''}`;
+}
+
+function mostrarIPAQResultado(ipaq) {
+  const card = document.getElementById('ipaqResultCard');
+  card.style.display = 'block';
+  document.getElementById('rIPAQMet').textContent = ipaq.met_total != null ? ipaq.met_total.toFixed(1) : '—';
+  document.getElementById('rIPAQVig').textContent = ipaq.met_vigorosa != null ? ipaq.met_vigorosa.toFixed(1) : '—';
+  document.getElementById('rIPAQMod').textContent = ipaq.met_moderada != null ? ipaq.met_moderada.toFixed(1) : '—';
+  document.getElementById('rIPAQCaminhada').textContent = ipaq.met_caminhada != null ? ipaq.met_caminhada.toFixed(1) : '—';
+  const sentado = (ipaq.q7_sentado_horas || 0) * 60 + (ipaq.q7_sentado_min || 0);
+  document.getElementById('rIPAQSentado').textContent = sentado;
+  document.getElementById('rIPAQAtencao').textContent = ipaq.classificacao || '—';
+
+  const mapaIPAQ = {
+    'sedentario':    { rotulo: 'Sedentário',    cor: '#6b7280' },
+    'insuficiente':  { rotulo: 'Insuficiente',  cor: '#d97706' },
+    'ativo':         { rotulo: 'Ativo',         cor: '#2563eb' },
+    'muito_ativo':   { rotulo: 'Muito Ativo',   cor: '#16a34a' },
+  };
+  const info = mapaIPAQ[ipaq.classificacao] || { rotulo: ipaq.classificacao || '—', cor: '#6b7280' };
+  const badge = document.getElementById('badgeIPAQ');
+  badge.textContent = info.rotulo;
+  badge.style.background = info.cor + '22';
+  badge.style.color = info.cor;
+}
+
+function mostrarSTAIResultado(stai) {
+  const card = document.getElementById('staiResultCard');
+  card.style.display = 'block';
+  document.getElementById('rSTAIS').textContent = stai.score_s != null ? stai.score_s : '—';
+  document.getElementById('rSTAIT').textContent = stai.score_t != null ? stai.score_t : '—';
+  document.getElementById('rSTAISClass').textContent = stai.classificacao_s || '—';
+  document.getElementById('rSTAITClass').textContent = stai.classificacao_t || '—';
+
+  const mapa = { 'baixo':'#16a34a', 'medio':'#d97706', 'alto':'#dc2626' };
+  const cor = mapa[stai.classificacao_s] || '#6b7280';
+  const badge = document.getElementById('badgeSTAI');
+  badge.textContent = `Estado: ${stai.classificacao_s || '—'}`;
+  badge.style.background = cor + '22';
+  badge.style.color = cor;
+}
+
+function mostrarPSQIResultado(psqi) {
+  const card = document.getElementById('psqiResultCard');
+  card.style.display = 'block';
+
+  const escore = psqi.escore_global;
+  document.getElementById('rPSQIEscore').textContent = escore != null ? escore : '—';
+  document.getElementById('rPSQIC1').textContent = psqi.componente_1 != null ? psqi.componente_1 : '—';
+  document.getElementById('rPSQIC2').textContent = psqi.componente_2 != null ? psqi.componente_2 : '—';
+  document.getElementById('rPSQIC3').textContent = psqi.componente_3 != null ? psqi.componente_3 : '—';
+  document.getElementById('rPSQIC4').textContent = psqi.componente_4 != null ? psqi.componente_4 : '—';
+  document.getElementById('rPSQIC5').textContent = psqi.componente_5 != null ? psqi.componente_5 : '—';
+  document.getElementById('rPSQIC6').textContent = psqi.componente_6 != null ? psqi.componente_6 : '—';
+  document.getElementById('rPSQIC7').textContent = psqi.componente_7 != null ? psqi.componente_7 : '—';
+
+  const classificacao = psqi.classificacao || '';
+  const badge = document.getElementById('badgePSQI');
+  const mapaPSQI = {
+    'boa':       { rotulo: 'Boa',       cor: '#16a34a' },
+    'baixa':     { rotulo: 'Baixa',     cor: '#d97706' },
+    'ruim':      { rotulo: 'Ruim',      cor: '#dc2626' },
+    'muito_ruim':{ rotulo: 'Muito Ruim',cor: '#991b1b' },
+  };
+  const info = mapaPSQI[classificacao] || { rotulo: classificacao, cor: '#6b7280' };
+  badge.textContent = info.rotulo;
+  badge.style.background = info.cor + '22';
+  badge.style.color = info.cor;
+
+  const descEl = document.getElementById('descPSQI');
+  descEl.style.background = info.cor + '11';
+  descEl.style.color = info.cor;
+  const descricoes = {
+    'boa':        'Qualidade do sono satisfatória (≤5 pontos).',
+    'baixa':      'Baixa qualidade do sono (6–10 pontos). Recomenda-se atenção aos hábitos de sono.',
+    'ruim':       'Qualidade do sono ruim (11–15 pontos). Sugere-se avaliação clínica especializada.',
+    'muito_ruim': 'Qualidade do sono muito ruim (16–21 pontos). Forte recomendação de avaliação clínica.',
+  };
+  descEl.innerHTML = `<strong>${info.rotulo}:</strong> ${descricoes[classificacao] || 'Classificação não disponível.'}`;
 }
 
 // ═══════════════════════════════════════════════════════════════

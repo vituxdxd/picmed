@@ -236,6 +236,316 @@ def estimar_bpm_tempo_real(sinal_mv: list[float] | np.ndarray, fs: int = TAXA_AM
     }
 
 
+# ─── STAI-S-6 e STAI-T-6 (Fioravanti-Bastos et al., 2011) ──────────────────
+def calcular_stai(respostas: dict) -> dict:
+    """
+    Calcula os escores do STAI-S-6 (estado) e STAI-T-6 (traço).
+
+    Versão curta oficial validada em português brasileiro.
+    Cada escala tem 6 itens: 3 de ansiedade-presente + 3 de ansiedade-ausente.
+
+    STAI-S-6 (Estado) — "Como você se sente agora, neste momento?" (1-4 Likert)
+      Itens ansiedade-presente (não inverter):
+        s17 "Estou preocupado(a)"
+        s3  "Estou tenso(a)"
+        s12 "Sinto-me nervoso(a)"
+      Itens ansiedade-ausente (INVERTER: 4->1, 3->2, 2->3, 1->4):
+        s1  "Sinto-me calmo(a)"
+        s15 "Estou descontraído(a)"
+        s5  "Sinto-me à vontade"
+
+    STAI-T-6 (Traço) — "Como você geralmente se sente?" (1-4 Likert)
+      Itens ansiedade-presente (não inverter):
+        t9  "Preocupo-me demais com coisas sem importância"
+        t21 "Sinto-me nervoso(a) e inquieto(a)"
+        t20 "Fico tenso(a) e perturbado(a) quando penso em meus problemas no momento"
+      Itens ansiedade-ausente (INVERTER: 4->1, 3->2, 2->3, 1->4):
+        t13 "Sinto-me uma pessoa segura"
+        t7  "Sou calmo(a), ponderado(a) e senhor(a) de mim mesmo(a)"
+        t25 "Tomo decisões facilmente"
+
+    Retorna
+    -------
+    dict com score_s (6-24), score_t (6-24), classificacao_s, classificacao_t.
+    """
+    def _inv(valor: int) -> int:
+        """Inverte item de ansiedade-ausente: 4→1, 3→2, 2→3, 1→4."""
+        return 5 - valor
+
+    # ── STAI-S-6 ──────────────────────────────────────────────────────────
+    s_present = [
+        int(respostas.get("s17", 1) or 1),  # preocupado
+        int(respostas.get("s3", 1) or 1),    # tenso
+        int(respostas.get("s12", 1) or 1),   # nervoso
+    ]
+    s_absent = [
+        _inv(int(respostas.get("s1", 1) or 1)),   # calmo (inv)
+        _inv(int(respostas.get("s15", 1) or 1)),  # descontraído (inv)
+        _inv(int(respostas.get("s5", 1) or 1)),   # à vontade (inv)
+    ]
+    score_s = sum(s_present) + sum(s_absent)  # 6–24
+
+    # ── STAI-T-6 ──────────────────────────────────────────────────────────
+    t_present = [
+        int(respostas.get("t9", 1) or 1),   # preocupa demais
+        int(respostas.get("t21", 1) or 1),  # nervoso inquieto
+        int(respostas.get("t20", 1) or 1),  # tenso com problemas
+    ]
+    t_absent = [
+        _inv(int(respostas.get("t13", 1) or 1)),  # seguro (inv)
+        _inv(int(respostas.get("t7", 1) or 1)),    # calmo ponderado (inv)
+        _inv(int(respostas.get("t25", 1) or 1)),   # decisões fácil (inv)
+    ]
+    score_t = sum(t_present) + sum(t_absent)  # 6–24
+
+    # ── Classificação ─────────────────────────────────────────────────────
+    # Baseado em médias brasileiras do estudo de validação
+    # (Fioravanti-Bastos et al., 2011, n≈4000): média ~12-14, DP ~3-4
+    def _classificar_stai(score: int, escala: str) -> str:
+        if score <= 9:
+            return "baixo"
+        elif score <= 15:
+            return "medio"
+        else:
+            return "alto"
+
+    return {
+        "score_s": score_s,
+        "score_t": score_t,
+        "classificacao_s": _classificar_stai(score_s, "s"),
+        "classificacao_t": _classificar_stai(score_t, "t"),
+        "s_present": s_present,
+        "s_absent_raw": [int(respostas.get("s1",1)or 1), int(respostas.get("s15",1)or 1), int(respostas.get("s5",1)or 1)],
+        "t_present": t_present,
+        "t_absent_raw": [int(respostas.get("t13",1)or 1), int(respostas.get("t7",1)or 1), int(respostas.get("t25",1)or 1)],
+    }
+
+
+# ─── IPAQ: Questionário Internacional de Atividade Física (versão curta) ─────
+def calcular_ipaq(respostas: dict) -> dict:
+    """
+    Calcula os MET-minutos/semana e classificação do IPAQ versão curta.
+
+    Parâmetros
+    ----------
+    respostas : dict
+        Chaves esperadas:
+        - q1_vigorosa_dias       : int — dias/semana de atividade vigorosa
+        - q2_vigorosa_min        : int — minutos/dia de atividade vigorosa
+        - q3_moderada_dias       : int — dias/semana de atividade moderada
+        - q4_moderada_min        : int — minutos/dia de atividade moderada
+        - q5_caminhada_dias      : int — dias/semana de caminhada
+        - q6_caminhada_min       : int — minutos/dia de caminhada
+        - q7_sentado_horas       : int — horas sentado/dia de semana
+        - q7_sentado_min         : int — minutos sentado/dia de semana
+
+    Classificação adaptada (4 categorias):
+      - Sedentário
+      - Insuficientemente ativo
+      - Ativo
+      - Muito ativo
+
+    Retorna
+    -------
+    dict com met_min_semana por categoria, total, e classificacao.
+    """
+    # Extrai valores brutos
+    vig_dias = int(respostas.get("q1_vigorosa_dias", 0) or 0)
+    vig_min  = int(respostas.get("q2_vigorosa_min", 0) or 0)
+    mod_dias = int(respostas.get("q3_moderada_dias", 0) or 0)
+    mod_min  = int(respostas.get("q4_moderada_min", 0) or 0)
+    cam_dias = int(respostas.get("q5_caminhada_dias", 0) or 0)
+    cam_min  = int(respostas.get("q6_caminhada_min", 0) or 0)
+    sent_horas = int(respostas.get("q7_sentado_horas", 0) or 0)
+    sent_min   = int(respostas.get("q7_sentado_min", 0) or 0)
+
+    # MET-min/semana = MET × minutos × dias
+    met_vigorosa = round(8.0 * vig_min * vig_dias, 1)
+    met_moderada = round(4.0 * mod_min * mod_dias, 1)
+    met_caminhada = round(3.3 * cam_min * cam_dias, 1)
+    met_total = round(met_vigorosa + met_moderada + met_caminhada, 1)
+
+    # Dias ativos totais
+    dias_ativos = vig_dias + mod_dias + cam_dias
+
+    # Classificação (4 categorias)
+    if met_total == 0:
+        classificacao = "sedentario"
+    elif met_total < 600:
+        classificacao = "insuficiente"
+    elif met_total < 1500:
+        classificacao = "ativo"
+    else:
+        classificacao = "muito_ativo"
+
+    # Tempo sentado total em minutos
+    sentado_total_min = sent_horas * 60 + sent_min
+
+    return {
+        "met_vigorosa": met_vigorosa,
+        "met_moderada": met_moderada,
+        "met_caminhada": met_caminhada,
+        "met_total": met_total,
+        "dias_ativos_total": dias_ativos,
+        "classificacao": classificacao,
+        "sentado_total_min": sentado_total_min,
+        "dados_brutos": {
+            "vigorosa_dias": vig_dias, "vigorosa_min": vig_min,
+            "moderada_dias": mod_dias, "moderada_min": mod_min,
+            "caminhada_dias": cam_dias, "caminhada_min": cam_min,
+            "sentado_horas": sent_horas, "sentado_min": sent_min,
+        }
+    }
+
+
+# ─── PSQI: Índice de Qualidade do Sono de Pittsburgh ─────────────────────────
+def calcular_psqi(respostas: dict) -> dict:
+    """
+    Calcula os 7 componentes e o escore global do PSQI a partir das
+    respostas brutas do questionário.
+
+    Parâmetros
+    ----------
+    respostas : dict
+        Deve conter as seguintes chaves (valores brutos conforme o questionário):
+        - q1_hora_deitar      : str "HH:MM" — hora usual de deitar
+        - q2_min_adormecer    : int — minutos para adormecer
+        - q3_hora_levantar    : str "HH:MM" — hora usual de levantar
+        - q4_horas_sono       : float — horas de sono por noite
+        - q5a .. q5j          : int 0-3 — frequência de cada distúrbio
+        - q6_qualidade        : int 0-3 — qualidade subjetiva do sono
+        - q7_medicamento      : int 0-3 — uso de remédio para dormir
+        - q8_ficar_acordado   : int 0-3 — dificuldade ficar acordado
+        - q9_entusiasmo       : int 0-3 — problema com entusiasmo/ânimo
+
+    Retorna
+    -------
+    dict com componente_1..7, escore_global (0-21) e classificacao.
+    """
+    def _parse_hora(hora_str: str) -> float:
+        """Converte 'HH:MM' para horas decimais (ex: '23:30' -> 23.5)."""
+        try:
+            h, m = hora_str.strip().split(":")
+            return float(h) + float(m) / 60.0
+        except Exception:
+            return 0.0
+
+    # ── Componente 1: Qualidade subjetiva do sono (Q6) ──────────────────
+    q6 = int(respostas.get("q6_qualidade", 0))
+    c1 = q6  # 0-3
+
+    # ── Componente 2: Latência do sono (Q2 + Q5a) ───────────────────────
+    q2 = float(respostas.get("q2_min_adormecer", 0))
+    if q2 <= 15:
+        score_q2 = 0
+    elif q2 <= 30:
+        score_q2 = 1
+    elif q2 <= 60:
+        score_q2 = 2
+    else:
+        score_q2 = 3
+
+    q5a = int(respostas.get("q5a", 0))
+    soma_c2 = score_q2 + q5a
+    if soma_c2 == 0:
+        c2 = 0
+    elif soma_c2 <= 2:
+        c2 = 1
+    elif soma_c2 <= 4:
+        c2 = 2
+    else:
+        c2 = 3
+
+    # ── Componente 3: Duração do sono (Q4) ──────────────────────────────
+    q4 = float(respostas.get("q4_horas_sono", 0))
+    if q4 > 7:
+        c3 = 0
+    elif q4 >= 6:
+        c3 = 1
+    elif q4 >= 5:
+        c3 = 2
+    else:
+        c3 = 3
+
+    # ── Componente 4: Eficiência habitual do sono ───────────────────────
+    hora_deitar = _parse_hora(respostas.get("q1_hora_deitar", "00:00"))
+    hora_levantar = _parse_hora(respostas.get("q3_hora_levantar", "00:00"))
+    # Corrige virada de dia: se levantar < deitar, soma 24h
+    if hora_levantar < hora_deitar:
+        horas_no_leito = (hora_levantar + 24.0) - hora_deitar
+    else:
+        horas_no_leito = hora_levantar - hora_deitar
+
+    if horas_no_leito > 0:
+        eficiencia = (q4 / horas_no_leito) * 100.0
+    else:
+        eficiencia = 0.0
+
+    if eficiencia > 85:
+        c4 = 0
+    elif eficiencia >= 75:
+        c4 = 1
+    elif eficiencia >= 65:
+        c4 = 2
+    else:
+        c4 = 3
+
+    # ── Componente 5: Distúrbios do sono (Q5b a Q5j) ────────────────────
+    soma_disturbios = 0
+    for item in ["q5b", "q5c", "q5d", "q5e", "q5f", "q5g", "q5h", "q5i", "q5j"]:
+        soma_disturbios += int(respostas.get(item, 0))
+    if soma_disturbios == 0:
+        c5 = 0
+    elif soma_disturbios <= 9:
+        c5 = 1
+    elif soma_disturbios <= 18:
+        c5 = 2
+    else:
+        c5 = 3
+
+    # ── Componente 6: Uso de remédio para dormir (Q7) ───────────────────
+    q7 = int(respostas.get("q7_medicamento", 0))
+    c6 = q7  # 0-3
+
+    # ── Componente 7: Disfunção diurna (Q8 + Q9) ────────────────────────
+    q8 = int(respostas.get("q8_ficar_acordado", 0))
+    q9 = int(respostas.get("q9_entusiasmo", 0))
+    soma_diurna = q8 + q9
+    if soma_diurna == 0:
+        c7 = 0
+    elif soma_diurna <= 2:
+        c7 = 1
+    elif soma_diurna <= 4:
+        c7 = 2
+    else:
+        c7 = 3
+
+    escore_global = c1 + c2 + c3 + c4 + c5 + c6 + c7
+
+    if escore_global <= 5:
+        classificacao = "boa"
+    elif escore_global <= 10:
+        classificacao = "baixa"
+    elif escore_global <= 15:
+        classificacao = "ruim"
+    else:
+        classificacao = "muito_ruim"
+
+    return {
+        "componente_1": c1,
+        "componente_2": c2,
+        "componente_3": c3,
+        "componente_4": c4,
+        "componente_5": c5,
+        "componente_6": c6,
+        "componente_7": c7,
+        "escore_global": escore_global,
+        "classificacao": classificacao,
+        "eficiencia_sono_pct": round(eficiencia, 1),
+        "horas_no_leito": round(horas_no_leito, 1),
+    }
+
+
 # ─── Interpretação do Índice de Baevsky ───────────────────────────────────────
 def interpretar_si(si: Optional[float]) -> dict:
     """

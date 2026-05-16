@@ -102,9 +102,84 @@ def inicializar():
                 tabagismo_freq  TEXT,     -- frequência (diario | semanal | ocasional)
                 etilismo_24h    INTEGER,  -- 0=não | 1=sim
                 medicacao       TEXT,     -- nome ou "nenhuma"
-                ipaq_nivel      TEXT,     -- sedentario | insuficiente | ativo | muito_ativo
                 psicoterapia    INTEGER DEFAULT 0, -- 0=não | 1=sim
                 psicoterapia_freq TEXT     -- frequência (semanal | quinzenal | mensal | ocasional)
+            );
+
+            -- STAI-S-6 e STAI-T-6 (Fioravanti-Bastos et al., 2011)
+            CREATE TABLE IF NOT EXISTS stai (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_sessao       INTEGER NOT NULL UNIQUE REFERENCES sessoes(id),
+                s1_calmo        INTEGER,  -- 1-4 (ausente, inverte)
+                s3_tenso        INTEGER,  -- 1-4 (presente)
+                s5_vontade      INTEGER,  -- 1-4 (ausente, inverte)
+                s12_nervoso     INTEGER,  -- 1-4 (presente)
+                s15_descontraido INTEGER, -- 1-4 (ausente, inverte)
+                s17_preocupado  INTEGER,  -- 1-4 (presente)
+                t7_calmo        INTEGER,  -- 1-4 (ausente, inverte)
+                t9_preocupa     INTEGER,  -- 1-4 (presente)
+                t13_seguro      INTEGER,  -- 1-4 (ausente, inverte)
+                t20_tenso_prob  INTEGER,  -- 1-4 (presente)
+                t21_nerv_inquieto INTEGER, -- 1-4 (presente)
+                t25_decisoes    INTEGER,  -- 1-4 (ausente, inverte)
+                score_s         INTEGER,  -- 6-24
+                score_t         INTEGER,  -- 6-24
+                classificacao_s TEXT,     -- baixo | medio | alto
+                classificacao_t TEXT      -- baixo | medio | alto
+            );
+
+            -- IPAQ: Questionário Internacional de Atividade Física (versão curta)
+            CREATE TABLE IF NOT EXISTS ipaq (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_sessao       INTEGER NOT NULL UNIQUE REFERENCES sessoes(id),
+                q1_vigorosa_dias    INTEGER,  -- dias/semana
+                q2_vigorosa_min     INTEGER,  -- minutos/dia
+                q3_moderada_dias    INTEGER,
+                q4_moderada_min     INTEGER,
+                q5_caminhada_dias   INTEGER,
+                q6_caminhada_min    INTEGER,
+                q7_sentado_horas    INTEGER,  -- horas
+                q7_sentado_min      INTEGER,  -- minutos
+                met_vigorosa        REAL,     -- MET-min/semana
+                met_moderada        REAL,
+                met_caminhada       REAL,
+                met_total           REAL,
+                dias_ativos_total   INTEGER,
+                classificacao       TEXT      -- sedentario | insuficiente | ativo | muito_ativo
+            );
+
+            -- PSQI: Índice de Qualidade do Sono de Pittsburgh
+            CREATE TABLE IF NOT EXISTS psqi (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_sessao       INTEGER NOT NULL UNIQUE REFERENCES sessoes(id),
+                q1_hora_deitar      TEXT,    -- "HH:MM"
+                q2_min_adormecer     INTEGER, -- minutos
+                q3_hora_levantar     TEXT,    -- "HH:MM"
+                q4_horas_sono        REAL,    -- horas
+                q5a                  INTEGER, -- 0-3
+                q5b                  INTEGER, -- 0-3
+                q5c                  INTEGER, -- 0-3
+                q5d                  INTEGER, -- 0-3
+                q5e                  INTEGER, -- 0-3
+                q5f                  INTEGER, -- 0-3
+                q5g                  INTEGER, -- 0-3
+                q5h                  INTEGER, -- 0-3
+                q5i                  INTEGER, -- 0-3
+                q5j                  INTEGER, -- 0-3
+                q6_qualidade         INTEGER, -- 0-3
+                q7_medicamento       INTEGER, -- 0-3
+                q8_ficar_acordado    INTEGER, -- 0-3
+                q9_entusiasmo        INTEGER, -- 0-3
+                q10_parceiro         INTEGER, -- 0-3 (não entra no escore)
+                componente_1     INTEGER, -- qualidade subjetiva (0-3)
+                componente_2     INTEGER, -- latência do sono (0-3)
+                componente_3     INTEGER, -- duração do sono (0-3)
+                componente_4     INTEGER, -- eficiência habitual (0-3)
+                componente_5     INTEGER, -- distúrbios do sono (0-3)
+                componente_6     INTEGER, -- uso de remédio (0-3)
+                componente_7     INTEGER, -- disfunção diurna (0-3)
+                escore_global    INTEGER, -- 0-21
+                classificacao    TEXT     -- boa | baixa | ruim | muito_ruim
             );
         """)
         conn.commit()
@@ -172,7 +247,25 @@ def excluir_participante_completo(id_participante: int) -> Optional[dict]:
         """, (id_participante,)).fetchone()[0]
 
         conn.execute("""
+            DELETE FROM stai
+            WHERE id_sessao IN (
+                SELECT id FROM sessoes WHERE id_participante = ?
+            )
+        """, (id_participante,))
+        conn.execute("""
             DELETE FROM inventario
+            WHERE id_sessao IN (
+                SELECT id FROM sessoes WHERE id_participante = ?
+            )
+        """, (id_participante,))
+        conn.execute("""
+            DELETE FROM ipaq
+            WHERE id_sessao IN (
+                SELECT id FROM sessoes WHERE id_participante = ?
+            )
+        """, (id_participante,))
+        conn.execute("""
+            DELETE FROM psqi
             WHERE id_sessao IN (
                 SELECT id FROM sessoes WHERE id_participante = ?
             )
@@ -237,11 +330,13 @@ def listar_sessoes() -> list[dict]:
     rows = conn.execute("""
         SELECT s.*, p.codigo, p.ciclo,
                m.si_baevsky, m.rmssd_ms, m.sdnn_ms,
-               i.pss10_score
+               i.pss10_score,
+               q.escore_global AS psqi_escore
         FROM sessoes s
         JOIN participantes p ON p.id = s.id_participante
         LEFT JOIN metricas_vfc m ON m.id_sessao = s.id
         LEFT JOIN inventario i ON i.id_sessao = s.id
+        LEFT JOIN psqi q ON q.id_sessao = s.id
         ORDER BY s.inicio_em DESC
     """).fetchall()
     conn.close()
@@ -337,20 +432,145 @@ def salvar_inventario(id_sessao: int, dados: dict):
             INSERT OR REPLACE INTO inventario
                 (id_sessao, pss10_score, cafeina_mg,
                  tabagismo, tabagismo_freq,
-                 etilismo_24h, medicacao, ipaq_nivel,
+                 etilismo_24h, medicacao,
                  psicoterapia, psicoterapia_freq)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?)
         """, (
             id_sessao,
             dados.get("pss10_score"),
             dados.get("cafeina_mg"),
             dados.get("tabagismo"),     dados.get("tabagismo_freq"),
             dados.get("etilismo_24h"),  dados.get("medicacao"),
-            dados.get("ipaq_nivel"),
             dados.get("psicoterapia"),  dados.get("psicoterapia_freq"),
         ))
         conn.commit()
         conn.close()
+
+
+def salvar_psqi(id_sessao: int, respostas: dict):
+    """Persiste as respostas brutas e os escores calculados do PSQI."""
+    with _lock_escrita:
+        conn = _conectar()
+        conn.execute("""
+            INSERT OR REPLACE INTO psqi
+                (id_sessao, q1_hora_deitar, q2_min_adormecer, q3_hora_levantar,
+                 q4_horas_sono, q5a, q5b, q5c, q5d, q5e, q5f, q5g, q5h, q5i, q5j,
+                 q6_qualidade, q7_medicamento, q8_ficar_acordado, q9_entusiasmo,
+                 q10_parceiro,
+                 componente_1, componente_2, componente_3, componente_4,
+                 componente_5, componente_6, componente_7,
+                 escore_global, classificacao)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            id_sessao,
+            respostas.get("q1_hora_deitar"),
+            respostas.get("q2_min_adormecer"),
+            respostas.get("q3_hora_levantar"),
+            respostas.get("q4_horas_sono"),
+            respostas.get("q5a"), respostas.get("q5b"), respostas.get("q5c"),
+            respostas.get("q5d"), respostas.get("q5e"), respostas.get("q5f"),
+            respostas.get("q5g"), respostas.get("q5h"), respostas.get("q5i"),
+            respostas.get("q5j"),
+            respostas.get("q6_qualidade"),
+            respostas.get("q7_medicamento"),
+            respostas.get("q8_ficar_acordado"),
+            respostas.get("q9_entusiasmo"),
+            respostas.get("q10_parceiro"),
+            respostas.get("componente_1"), respostas.get("componente_2"),
+            respostas.get("componente_3"), respostas.get("componente_4"),
+            respostas.get("componente_5"), respostas.get("componente_6"),
+            respostas.get("componente_7"),
+            respostas.get("escore_global"),
+            respostas.get("classificacao"),
+        ))
+        conn.commit()
+        conn.close()
+
+
+def salvar_stai(id_sessao: int, dados: dict):
+    """Persiste os dados brutos e escores calculados do STAI-S-6 e STAI-T-6."""
+    with _lock_escrita:
+        conn = _conectar()
+        conn.execute("""
+            INSERT OR REPLACE INTO stai
+                (id_sessao, s1_calmo, s3_tenso, s5_vontade, s12_nervoso,
+                 s15_descontraido, s17_preocupado,
+                 t7_calmo, t9_preocupa, t13_seguro, t20_tenso_prob,
+                 t21_nerv_inquieto, t25_decisoes,
+                 score_s, score_t, classificacao_s, classificacao_t)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            id_sessao,
+            dados.get("s1_calmo"), dados.get("s3_tenso"), dados.get("s5_vontade"),
+            dados.get("s12_nervoso"), dados.get("s15_descontraido"), dados.get("s17_preocupado"),
+            dados.get("t7_calmo"), dados.get("t9_preocupa"), dados.get("t13_seguro"),
+            dados.get("t20_tenso_prob"), dados.get("t21_nerv_inquieto"), dados.get("t25_decisoes"),
+            dados.get("score_s"), dados.get("score_t"),
+            dados.get("classificacao_s"), dados.get("classificacao_t"),
+        ))
+        conn.commit()
+        conn.close()
+
+
+def obter_stai(id_sessao: int) -> Optional[dict]:
+    conn = _conectar()
+    row = conn.execute(
+        "SELECT * FROM stai WHERE id_sessao=?", (id_sessao,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def salvar_ipaq(id_sessao: int, dados: dict):
+    """Persiste os dados brutos e calculados do IPAQ."""
+    with _lock_escrita:
+        conn = _conectar()
+        conn.execute("""
+            INSERT OR REPLACE INTO ipaq
+                (id_sessao, q1_vigorosa_dias, q2_vigorosa_min,
+                 q3_moderada_dias, q4_moderada_min,
+                 q5_caminhada_dias, q6_caminhada_min,
+                 q7_sentado_horas, q7_sentado_min,
+                 met_vigorosa, met_moderada, met_caminhada, met_total,
+                 dias_ativos_total, classificacao)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            id_sessao,
+            dados.get("q1_vigorosa_dias"),
+            dados.get("q2_vigorosa_min"),
+            dados.get("q3_moderada_dias"),
+            dados.get("q4_moderada_min"),
+            dados.get("q5_caminhada_dias"),
+            dados.get("q6_caminhada_min"),
+            dados.get("q7_sentado_horas"),
+            dados.get("q7_sentado_min"),
+            dados.get("met_vigorosa"),
+            dados.get("met_moderada"),
+            dados.get("met_caminhada"),
+            dados.get("met_total"),
+            dados.get("dias_ativos_total"),
+            dados.get("classificacao"),
+        ))
+        conn.commit()
+        conn.close()
+
+
+def obter_ipaq(id_sessao: int) -> Optional[dict]:
+    conn = _conectar()
+    row = conn.execute(
+        "SELECT * FROM ipaq WHERE id_sessao=?", (id_sessao,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def obter_psqi(id_sessao: int) -> Optional[dict]:
+    conn = _conectar()
+    row = conn.execute(
+        "SELECT * FROM psqi WHERE id_sessao=?", (id_sessao,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 def obter_metricas(id_sessao: int) -> Optional[dict]:
