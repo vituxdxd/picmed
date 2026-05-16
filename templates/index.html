@@ -126,7 +126,9 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
 .pss-row { display:grid; grid-template-columns:1fr auto; gap:0.5rem; align-items:center; padding:0.6rem 0; border-bottom:1px solid var(--border-light); }
 .pss-question { font-size:0.84rem; color:var(--text-dim); }
 .pss-options { display:flex; gap:0.25rem; }
-.pss-opt { width:32px; height:32px; border:1px solid var(--border); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:0.78rem; font-weight:600; color:var(--text-mute); background:#fff; transition:all 0.15s; }
+.pss-opt { min-width:32px; width:auto; padding:0.15rem 0.35rem; height:auto; min-height:48px; border:1px solid var(--border); border-radius:var(--radius-sm); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:0.78rem; font-weight:600; color:var(--text-mute); background:#fff; transition:all 0.15s; gap:1px; }
+.pss-opt .opt-num { font-size:0.82rem; font-weight:700; line-height:1.1; }
+.pss-opt .opt-lbl { font-size:0.50rem; font-weight:400; line-height:1.1; text-align:center; white-space:nowrap; }
 .pss-opt:hover { border-color:var(--primary); color:var(--primary); }
 .pss-opt.sel { background:var(--primary); color:#fff; border-color:var(--primary); }
 
@@ -1181,7 +1183,10 @@ function initPSS() {
     row.innerHTML = `
       <div class="pss-question"><strong>${i+1}.</strong> ${q}</div>
       <div class="pss-options">
-        ${[0,1,2,3,4].map(v => `<div class="pss-opt" data-q="${i}" data-v="${v}">${v}</div>`).join('')}
+        ${[0,1,2,3,4].map(v => {
+          const labels = ['Nunca','Quase<br>nunca','Às<br>vezes','Freq.','Muito<br>freq.'];
+          return `<div class="pss-opt" data-q="${i}" data-v="${v}"><span class="opt-num">${v}</span><span class="opt-lbl">${labels[v]}</span></div>`;
+        }).join('')}
       </div>`;
     container.appendChild(row);
   });
@@ -1240,7 +1245,7 @@ function initPSQI() {
       <div class="pss-options">
         ${[0,1,2,3].map(v => {
           const labels = ['Nenhuma', '<1×/sem', '1-2×/sem', '≥3×/sem'];
-          return `<div class="pss-opt" data-q="${item.key}" data-v="${v}" title="${labels[v]}">${v}</div>`;
+          return `<div class="pss-opt" data-q="${item.key}" data-v="${v}"><span class="opt-num">${v}</span><span class="opt-lbl">${labels[v]}</span></div>`;
         }).join('')}
       </div>`;
     container.appendChild(row);
