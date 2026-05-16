@@ -425,9 +425,43 @@ def salvar_metricas(id_sessao: int, metricas: dict):
 
 
 def salvar_inventario(id_sessao: int, dados: dict):
-    """Persiste o inventário de rotina e PSS-10 de uma sessão."""
+    """
+    Persiste o inventário de rotina e PSS-10 de uma sessão.
+    Faz merge com dados existentes para não perder campos salvos separadamente
+    (ex: PSS-10 salvo via /api/pss10 e inventário via /api/inventario).
+    """
     with _lock_escrita:
         conn = _conectar()
+        # Busca a linha existente, se houver
+        existente = conn.execute(
+            "SELECT * FROM inventario WHERE id_sessao=?", (id_sessao,)
+        ).fetchone()
+        if existente:
+            existente = dict(existente)
+            # Mantém os valores existentes para campos não fornecidos nesta chamada
+            merged = {
+                "pss10_score":       dados.get("pss10_score", existente.get("pss10_score")),
+                "cafeina_mg":        dados.get("cafeina_mg", existente.get("cafeina_mg")),
+                "tabagismo":         dados.get("tabagismo", existente.get("tabagismo")),
+                "tabagismo_freq":    dados.get("tabagismo_freq", existente.get("tabagismo_freq")),
+                "etilismo_24h":      dados.get("etilismo_24h", existente.get("etilismo_24h")),
+                "medicacao":         dados.get("medicacao", existente.get("medicacao")),
+                "psicoterapia":      dados.get("psicoterapia", existente.get("psicoterapia")),
+                "psicoterapia_freq": dados.get("psicoterapia_freq", existente.get("psicoterapia_freq")),
+            }
+            del existente  # libera o dict row do sqlite3
+        else:
+            merged = {
+                "pss10_score":       dados.get("pss10_score"),
+                "cafeina_mg":        dados.get("cafeina_mg"),
+                "tabagismo":         dados.get("tabagismo"),
+                "tabagismo_freq":    dados.get("tabagismo_freq"),
+                "etilismo_24h":      dados.get("etilismo_24h"),
+                "medicacao":         dados.get("medicacao"),
+                "psicoterapia":      dados.get("psicoterapia"),
+                "psicoterapia_freq": dados.get("psicoterapia_freq"),
+            }
+
         conn.execute("""
             INSERT OR REPLACE INTO inventario
                 (id_sessao, pss10_score, cafeina_mg,
@@ -437,11 +471,11 @@ def salvar_inventario(id_sessao: int, dados: dict):
             VALUES (?,?,?,?,?,?,?,?,?)
         """, (
             id_sessao,
-            dados.get("pss10_score"),
-            dados.get("cafeina_mg"),
-            dados.get("tabagismo"),     dados.get("tabagismo_freq"),
-            dados.get("etilismo_24h"),  dados.get("medicacao"),
-            dados.get("psicoterapia"),  dados.get("psicoterapia_freq"),
+            merged["pss10_score"],
+            merged["cafeina_mg"],
+            merged["tabagismo"],     merged["tabagismo_freq"],
+            merged["etilismo_24h"],  merged["medicacao"],
+            merged["psicoterapia"],  merged["psicoterapia_freq"],
         ))
         conn.commit()
         conn.close()

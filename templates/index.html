@@ -1483,9 +1483,94 @@ function togglePsicoterapiaFreq() {
   document.getElementById('grpPsicoterapiaFreq').style.display = psi === '1' ? '' : 'none';
 }
 
-function onSessaoSelecionada() {
+async function onSessaoSelecionada() {
   const v = document.getElementById('selSessaoForm').value;
   document.getElementById('formArea').style.display = v ? 'block' : 'none';
+  if (!v) return;
+  const sid = parseInt(v);
+
+  // Carrega inventário
+  try {
+    const inv = await api(`/api/inventario/${sid}`).catch(() => null);
+    if (inv && !inv.erro) {
+      document.getElementById('inpCafeina').value = inv.cafeina_mg ?? '';
+      document.getElementById('inpMedicacao').value = inv.medicacao ?? '';
+      document.getElementById('selTabagismo').value = inv.tabagismo ?? '0';
+      if (inv.tabagismo) {
+        document.getElementById('selTabagismoFreq').value = inv.tabagismo_freq ?? '';
+        document.getElementById('grpTabagismoFreq').style.display = '';
+      }
+      document.getElementById('selEtilismo').value = inv.etilismo_24h ?? '0';
+      document.getElementById('selPsicoterapia').value = inv.psicoterapia ?? '0';
+      if (inv.psicoterapia) {
+        document.getElementById('selPsicoterapiaFreq').value = inv.psicoterapia_freq ?? '';
+        document.getElementById('grpPsicoterapiaFreq').style.display = '';
+      }
+    }
+  } catch(e) {}
+
+  // Carrega IPAQ
+  try {
+    const ipaq = await api(`/api/ipaq/${sid}`).catch(() => null);
+    if (ipaq && !ipaq.erro) {
+      document.getElementById('ipaqQ1').value = ipaq.q1_vigorosa_dias ?? 0;
+      document.getElementById('ipaqQ2').value = ipaq.q2_vigorosa_min ?? 0;
+      document.getElementById('ipaqQ3').value = ipaq.q3_moderada_dias ?? 0;
+      document.getElementById('ipaqQ4').value = ipaq.q4_moderada_min ?? 0;
+      document.getElementById('ipaqQ5').value = ipaq.q5_caminhada_dias ?? 0;
+      document.getElementById('ipaqQ6').value = ipaq.q6_caminhada_min ?? 0;
+      document.getElementById('ipaqQ7h').value = ipaq.q7_sentado_horas ?? 0;
+      document.getElementById('ipaqQ7m').value = ipaq.q7_sentado_min ?? 0;
+      atualizarIPAQBadge();
+    }
+  } catch(e) {}
+
+  // Carrega STAI
+  try {
+    const stai = await api(`/api/stai/${sid}`).catch(() => null);
+    if (stai && !stai.erro) {
+      document.getElementById('staiS1').value = stai.s1_calmo ?? 1;
+      document.getElementById('staiS3').value = stai.s3_tenso ?? 1;
+      document.getElementById('staiS5').value = stai.s5_vontade ?? 1;
+      document.getElementById('staiS12').value = stai.s12_nervoso ?? 1;
+      document.getElementById('staiS15').value = stai.s15_descontraido ?? 1;
+      document.getElementById('staiS17').value = stai.s17_preocupado ?? 1;
+      document.getElementById('staiT7').value = stai.t7_calmo ?? 1;
+      document.getElementById('staiT9').value = stai.t9_preocupa ?? 1;
+      document.getElementById('staiT13').value = stai.t13_seguro ?? 1;
+      document.getElementById('staiT20').value = stai.t20_tenso_prob ?? 1;
+      document.getElementById('staiT21').value = stai.t21_nerv_inquieto ?? 1;
+      document.getElementById('staiT25').value = stai.t25_decisoes ?? 1;
+      atualizarSTAIFormBadge();
+    }
+  } catch(e) {}
+
+  // Carrega PSQI
+  try {
+    const psqi = await api(`/api/psqi/${sid}`).catch(() => null);
+    if (psqi && !psqi.erro) {
+      document.getElementById('psqiQ1').value = psqi.q1_hora_deitar ?? '23:00';
+      document.getElementById('psqiQ2').value = psqi.q2_min_adormecer ?? 15;
+      document.getElementById('psqiQ3').value = psqi.q3_hora_levantar ?? '07:00';
+      document.getElementById('psqiQ4').value = psqi.q4_horas_sono ?? 7;
+      document.getElementById('psqiQ6').value = psqi.q6_qualidade ?? 0;
+      document.getElementById('psqiQ7').value = psqi.q7_medicamento ?? 0;
+      document.getElementById('psqiQ8').value = psqi.q8_ficar_acordado ?? 0;
+      document.getElementById('psqiQ9').value = psqi.q9_entusiasmo ?? 0;
+      document.getElementById('psqiQ10').value = psqi.q10_parceiro ?? 0;
+      // Q5 items
+      const q5keys = ['q5a','q5b','q5c','q5d','q5e','q5f','q5g','q5h','q5i','q5j'];
+      q5keys.forEach(k => {
+        const container = document.getElementById('psqiQ5Container');
+        const opt = container?.querySelector(`.pss-opt[data-q="${k}"][data-v="${psqi[k] ?? 0}"]`);
+        if (opt) {
+          opt.parentNode.querySelectorAll('.pss-opt').forEach(o => o.classList.remove('sel'));
+          opt.classList.add('sel');
+        }
+      });
+      atualizarPSQIScore();
+    }
+  } catch(e) {}
 }
 
 async function salvarPSS10() {
@@ -1547,6 +1632,7 @@ async function carregarSessoes() {
       <td>
         ${s.fim_em && !s.processada ? `<button class="btn btn-primary btn-sm" onclick="processarSessao(${s.id})">Processar</button>` : ''}
         ${s.processada ? `<button class="btn btn-outline btn-sm" onclick="verResultado(${s.id})">Ver</button>` : ''}
+        ${s.processada ? `<a class="btn btn-outline btn-sm" href="/api/relatorio/${s.id}/pdf" style="text-decoration:none;">📄 PDF</a>` : ''}
         <button class="btn btn-red btn-sm" onclick='excluirParticipante(${s.id_participante}, ${JSON.stringify(s.codigo || "")})'>Apagar participante</button>
       </td>
     </tr>`;

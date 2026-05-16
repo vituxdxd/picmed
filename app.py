@@ -22,6 +22,7 @@ from flask import Flask, render_template, request, jsonify, Response, stream_wit
 import camada1_aquisicao as aquisicao
 import camada2_banco     as banco
 import camada3_processamento as processamento
+import gerar_pdf
 
 # ─── Inicialização ────────────────────────────────────────────────────────────
 app = Flask(__name__)
@@ -437,6 +438,19 @@ def api_salvar_pss10():
     return jsonify({"ok": True})
 
 
+@app.route("/api/inventario/<int:id_sessao>")
+def api_obter_inventario(id_sessao: int):
+    """Retorna os dados do inventário de rotina e PSS-10 de uma sessão."""
+    conn = banco._conectar()
+    inv_row = conn.execute(
+        "SELECT * FROM inventario WHERE id_sessao=?", (id_sessao,)
+    ).fetchone()
+    conn.close()
+    if not inv_row:
+        return jsonify({"erro": "Inventário não encontrado para esta sessão."}), 404
+    return jsonify(dict(inv_row))
+
+
 @app.route("/api/inventario", methods=["POST"])
 def api_salvar_inventario():
     d = request.json or {}
@@ -474,7 +488,17 @@ def api_salvar_stai():
     if not id_sessao:
         return jsonify({"erro": "id_sessao é obrigatório"}), 400
     stai_calc = processamento.calcular_stai(d)
-    dados_para_banco = {**d, **stai_calc}
+    # Mapeia chaves curtas (do frontend) para nomes das colunas do banco
+    dados_para_banco = {
+        "s1_calmo": d.get("s1"), "s3_tenso": d.get("s3"),
+        "s5_vontade": d.get("s5"), "s12_nervoso": d.get("s12"),
+        "s15_descontraido": d.get("s15"), "s17_preocupado": d.get("s17"),
+        "t7_calmo": d.get("t7"), "t9_preocupa": d.get("t9"),
+        "t13_seguro": d.get("t13"), "t20_tenso_prob": d.get("t20"),
+        "t21_nerv_inquieto": d.get("t21"), "t25_decisoes": d.get("t25"),
+        **stai_calc,
+    }
+    print(f"[STAI] Salvando sessão {id_sessao}: score_s={stai_calc.get('score_s')}, score_t={stai_calc.get('score_t')}")
     banco.salvar_stai(id_sessao, dados_para_banco)
     return jsonify({"ok": True, "stai": stai_calc})
 
@@ -513,6 +537,48 @@ def api_obter_psqi(id_sessao: int):
     if not psqi:
         return jsonify({"erro": "PSQI não encontrado para esta sessão."}), 404
     return jsonify(psqi)
+
+
+@app.route("/api/relatorio/<int:id_sessao>/pdf")
+def api_relatorio_pdf(id_sessao: int):
+    """Gera e retorna o PDF do relatório de resultados da sessão."""
+    metricas = banco.obter_metricas(id_sessao)
+    if not metricas:
+        return jsonify({"erro": "Sessão não processada. Processe a VFC primeiro."}), 404
+
+    si = metricas.get("si_baevsky")
+    metricas["interpretacao_si"] = processamento.interpretar_si(si)
+
+    # Busca PSS-10
+    conn = banco._conectar()
+    inv_row = conn.execute(
+        "SELECT pss10_score FROM inventario WHERE id_sessao=?", (id_sessao,)
+    ).fetchone()
+    conn.close()
+    pss10 = inv_row["pss10_score"] if inv_row else None
+
+    psqi = banco.obter_psqi(id_sessao)
+    ipaq = banco.obter_ipaq(id_sessao)
+    stai = banco.obter_stai(id_sessao)
+
+    try:
+        pdf_bytes = gerar_pdf.gerar_pdf_relatorio(
+            metricas_vfc=metricas,
+            pss10_score=pss10,
+            psqi=psqi,
+            ipaq=ipaq,
+            stai=stai,
+        )
+    except Exception as e:
+        return jsonify({"erro": f"Erro ao gerar PDF: {str(e)}"}), 500
+
+    from flask import send_file
+    return send_file(
+        pdf_bytes,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"relatorio_picmed_sessao_{id_sessao}.pdf",
+    )
 
 
 @app.route("/api/banco/stats")
