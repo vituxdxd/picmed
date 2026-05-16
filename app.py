@@ -428,13 +428,54 @@ def api_encerrar_sessao():
 
 @app.route("/api/pss10", methods=["POST"])
 def api_salvar_pss10():
-    """Salva apenas o score PSS-10 associado a uma sessão."""
+    """Salva o PSS-10 (score e respostas) associado a uma sessão."""
     d = request.json or {}
     id_sessao = d.get("id_sessao")
     pss10_score = d.get("pss10_score")
+    pss10_answers = d.get("pss10_answers")
     if not id_sessao or pss10_score is None:
         return jsonify({"erro": "id_sessao e pss10_score são obrigatórios"}), 400
-    banco.salvar_inventario(id_sessao, {"pss10_score": pss10_score})
+
+    try:
+        id_sessao = int(id_sessao)
+    except (TypeError, ValueError):
+        return jsonify({"erro": "id_sessao inválido"}), 400
+
+    respostas_norm: list[int] | None = None
+    if pss10_answers is not None:
+        if isinstance(pss10_answers, str):
+            try:
+                pss10_answers = json.loads(pss10_answers)
+            except json.JSONDecodeError:
+                return jsonify({"erro": "pss10_answers inválido: JSON malformado"}), 400
+
+        if not isinstance(pss10_answers, list) or len(pss10_answers) != 10:
+            return jsonify({"erro": "pss10_answers deve conter 10 respostas (0-4)"}), 400
+
+        try:
+            respostas_norm = [int(v) for v in pss10_answers]
+        except (TypeError, ValueError):
+            return jsonify({"erro": "pss10_answers deve conter apenas inteiros de 0 a 4"}), 400
+
+        if any(v < 0 or v > 4 for v in respostas_norm):
+            return jsonify({"erro": "pss10_answers deve conter apenas inteiros de 0 a 4"}), 400
+
+        itens_reversos = {3, 4, 6, 7}  # questões 4,5,7,8 (indexado em 0)
+        pss10_score = sum((4 - v) if i in itens_reversos else v for i, v in enumerate(respostas_norm))
+
+    try:
+        pss10_score = int(pss10_score)
+    except (TypeError, ValueError):
+        return jsonify({"erro": "pss10_score inválido"}), 400
+
+    if pss10_score < 0 or pss10_score > 40:
+        return jsonify({"erro": "pss10_score deve estar entre 0 e 40"}), 400
+
+    payload = {"pss10_score": pss10_score}
+    if respostas_norm is not None:
+        payload["pss10_answers"] = json.dumps(respostas_norm)
+
+    banco.salvar_inventario(id_sessao, payload)
     return jsonify({"ok": True})
 
 
@@ -560,6 +601,7 @@ def api_relatorio_pdf(id_sessao: int):
     psqi = banco.obter_psqi(id_sessao)
     ipaq = banco.obter_ipaq(id_sessao)
     stai = banco.obter_stai(id_sessao)
+    amostras_ecg = banco.carregar_ecg_sessao(id_sessao)
 
     try:
         pdf_bytes = gerar_pdf.gerar_pdf_relatorio(
@@ -568,6 +610,7 @@ def api_relatorio_pdf(id_sessao: int):
             psqi=psqi,
             ipaq=ipaq,
             stai=stai,
+            amostras_ecg=amostras_ecg,
         )
     except Exception as e:
         return jsonify({"erro": f"Erro ao gerar PDF: {str(e)}"}), 500
