@@ -9,7 +9,6 @@ venv/
 env/
 
 # Local databases and runtime files
-*.db
 *.sqlite3
 
 # IDE/editor
