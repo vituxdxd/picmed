@@ -67,7 +67,7 @@ python3 -m venv .venv
 source .venv/bin/activate  # No Windows: .venv\Scripts\activate
 
 # Dependências de sistema para PDF (Linux)
-sudo apt-get install pandoc texlive-xetex
+sudo apt-get update && sudo apt-get install -y pandoc texlive-xetex
 
 # Instale as dependências
 pip install -r requirements.txt
