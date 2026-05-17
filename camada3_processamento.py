@@ -13,6 +13,9 @@ from typing import Optional
 # ─── Constantes ───────────────────────────────────────────────────────────────
 TAXA_AMOSTRAGEM = 250       # Hz — deve coincidir com a configuração do ADS1115
 BIN_BAEVSKY_S   = 0.050     # 50 ms — tamanho do bin do histograma para cálculo do SI
+# Ajuste global de polaridade antes do NeuroKit2:
+# -1.0 => inverte o sinal; +1.0 => mantém como está.
+FATOR_POLARIDADE_NEUROKIT = -1.0
 
 
 # ─── Índice de Estresse de Baevsky (SI) ───────────────────────────────────────
@@ -96,31 +99,26 @@ def processar_sessao(amostras_ecg: list[dict]) -> Optional[dict]:
         # Menos de 30 segundos de dados — insuficiente para VFC confiável
         return {"erro": f"Dados insuficientes: {len(amostras_ecg)} amostras (mínimo: {TAXA_AMOSTRAGEM * 30})"}
 
-    # ── 1. Sinal bruto ────────────────────────────────────────────────────
-    sinal = np.array([a["tensao_mv"] for a in amostras_ecg], dtype=float)
+    # ── 1. Sinal bruto + ajuste global de polaridade ──────────────────────
+    sinal_bruto = np.array([a["tensao_mv"] for a in amostras_ecg], dtype=float)
+    sinal_neurokit = FATOR_POLARIDADE_NEUROKIT * sinal_bruto
 
-    # ── 2. Processamento ECG com NeuroKit2 ───────────────────────────────
-    # nk.ecg_process detecta picos R, limpa o sinal e valida os picos.
-    # Retorna um DataFrame com anotações e um dict de resultados.
+    # ── 2. Processamento ECG com NeuroKit2 ────────────────────────────────
     try:
-        sinais, info = nk.ecg_process(sinal, sampling_rate=TAXA_AMOSTRAGEM)
+        picos_r, _, rr_validos = _extrair_rr_validos_neurokit(
+            sinal=sinal_neurokit,
+            fs=TAXA_AMOSTRAGEM,
+            rr_min_s=0.30,
+            rr_max_s=2.00,
+        )
     except Exception as e:
         return {"erro": f"Falha no processamento NeuroKit2: {str(e)}"}
 
     # ── 3. Extrai picos R validados ───────────────────────────────────────
-    picos_r = info.get("ECG_R_Peaks", [])
     if len(picos_r) < 10:
         return {"erro": f"Poucos picos R detectados: {len(picos_r)}"}
 
     # ── 4. Intervalos R-R ─────────────────────────────────────────────────
-    # Diferença entre índices de picos consecutivos → converte para segundos
-    rr_samples = np.diff(picos_r)
-    rr_s = rr_samples / TAXA_AMOSTRAGEM
-
-    # Filtra R-Rs fisiologicamente plausíveis: 300 ms – 2000 ms (30–200 bpm)
-    mascara = (rr_s >= 0.30) & (rr_s <= 2.00)
-    rr_validos = rr_s[mascara]
-
     if len(rr_validos) < 5:
         return {"erro": "Poucos intervalos R-R válidos após filtragem fisiológica."}
 
@@ -164,23 +162,27 @@ def processar_sessao(amostras_ecg: list[dict]) -> Optional[dict]:
         "si_baevsky":  baevsky["si_baevsky"],
         # Interpretação
         "classificacao_si": classificacao_si,
+        # Diagnóstico da detecção R
+        "polaridade_detectada": "invertida" if FATOR_POLARIDADE_NEUROKIT < 0 else "normal",
     }
 
 
 # ─── BPM em tempo real (NeuroKit2) ───────────────────────────────────────────
-def _rr_validos_neurokit(sinal: np.ndarray, fs: int) -> np.ndarray:
-    """Extrai intervalos R-R válidos (s) a partir de um trecho de ECG."""
+def _extrair_rr_validos_neurokit(
+    sinal: np.ndarray,
+    fs: int,
+    rr_min_s: float,
+    rr_max_s: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extrai picos R e intervalos R-R válidos com NeuroKit2 em uma única polaridade."""
     sinal_limpo = nk.ecg_clean(sinal, sampling_rate=fs, method="neurokit")
     _, info = nk.ecg_peaks(sinal_limpo, sampling_rate=fs, method="neurokit")
 
     picos_r = np.asarray(info.get("ECG_R_Peaks", []), dtype=int)
-    if len(picos_r) < 3:
-        return np.array([], dtype=float)
-
-    rr_s = np.diff(picos_r) / fs
-    # Faixa de FC plausível para monitorização em repouso/estresse: 40–180 bpm
-    mascara = (rr_s >= (60.0 / 180.0)) & (rr_s <= (60.0 / 40.0))
-    return rr_s[mascara]
+    rr_s = np.diff(picos_r) / fs if picos_r.size >= 2 else np.array([], dtype=float)
+    mascara = (rr_s >= rr_min_s) & (rr_s <= rr_max_s)
+    rr_validos = rr_s[mascara]
+    return picos_r, rr_s, rr_validos
 
 
 def estimar_bpm_tempo_real(sinal_mv: list[float] | np.ndarray, fs: int = TAXA_AMOSTRAGEM) -> dict:
@@ -188,11 +190,12 @@ def estimar_bpm_tempo_real(sinal_mv: list[float] | np.ndarray, fs: int = TAXA_AM
     Estima BPM de forma robusta em janela deslizante usando NeuroKit2.
 
     Estratégia:
-    1) testa polaridade normal e invertida;
-    2) escolhe a que gerar mais RR válidos;
+    1) aplica ajuste global de polaridade no sinal;
+    2) extrai RR válidos com NeuroKit2;
     3) calcula BPM por mediana dos últimos RRs.
     """
     sinal = np.asarray(sinal_mv, dtype=float)
+    sinal_neurokit = FATOR_POLARIDADE_NEUROKIT * sinal
 
     janela_min = int(fs * 4)  # mínimo de 4 s para estabilizar detecção
     if len(sinal) < janela_min:
@@ -202,17 +205,14 @@ def estimar_bpm_tempo_real(sinal_mv: list[float] | np.ndarray, fs: int = TAXA_AM
         }
 
     try:
-        rr_pos = _rr_validos_neurokit(sinal, fs)
-        rr_neg = _rr_validos_neurokit(-sinal, fs)
+        _, _, rr = _extrair_rr_validos_neurokit(
+            sinal=sinal_neurokit,
+            fs=fs,
+            rr_min_s=(60.0 / 180.0),
+            rr_max_s=(60.0 / 40.0),
+        )
     except Exception as e:
         return {"bpm": None, "erro": f"Falha no NeuroKit2 (tempo real): {str(e)}"}
-
-    if len(rr_pos) >= len(rr_neg):
-        rr = rr_pos
-        polaridade = "normal"
-    else:
-        rr = rr_neg
-        polaridade = "invertida"
 
     if len(rr) < 2:
         return {"bpm": None, "erro": "Poucos intervalos RR válidos na janela."}
@@ -232,7 +232,7 @@ def estimar_bpm_tempo_real(sinal_mv: list[float] | np.ndarray, fs: int = TAXA_AM
         "rr_validos": int(len(rr)),
         "janela_s": round(len(sinal) / fs, 1),
         "variacao_bpm": round(variacao, 1),
-        "polaridade_detectada": polaridade,
+        "polaridade_detectada": "invertida" if FATOR_POLARIDADE_NEUROKIT < 0 else "normal",
     }
 
 

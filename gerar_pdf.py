@@ -14,7 +14,10 @@ import subprocess
 import tempfile
 
 import matplotlib.pyplot as plt
+import neurokit2 as nk
 import numpy as np
+
+import camada3_processamento as processamento
 
 
 def _valor(valor, sufixo: str = "", casas: int | None = None) -> str:
@@ -74,8 +77,22 @@ Não foi possível gerar o gráfico do ECG porque o trecho válido é curto dema
     idx_inicio = max(0, (sinal.size - pontos_trecho) // 2)
     idx_fim = idx_inicio + pontos_trecho
     trecho = sinal[idx_inicio:idx_fim]
-    trecho_plot = -trecho  # corrige a polaridade apenas para visualização no PDF
+    trecho_orientado = processamento.FATOR_POLARIDADE_NEUROKIT * trecho
+    # Continua em mV: apenas remove o offset DC para centralizar o traçado em 0 mV.
+    baseline_mv = float(np.median(trecho_orientado))
+    trecho_plot = trecho_orientado - baseline_mv
     tempo = np.arange(trecho.size) / fs
+
+    sinal_limpo = nk.ecg_clean(trecho_orientado, sampling_rate=fs, method="neurokit")
+    _, info = nk.ecg_peaks(sinal_limpo, sampling_rate=fs, method="neurokit")
+    picos_r = np.asarray(info.get("ECG_R_Peaks", []), dtype=int)
+
+    rr_pairs: list[tuple[int, int, float]] = []
+    if picos_r.size >= 2:
+        rr_s = np.diff(picos_r) / fs
+        for i, rr in enumerate(rr_s):
+            if 0.30 <= rr <= 2.00:
+                rr_pairs.append((int(picos_r[i]), int(picos_r[i + 1]), float(rr * 1000.0)))
 
     arquivo_png = tempfile.NamedTemporaryFile(
         suffix=".png",
@@ -87,10 +104,47 @@ Não foi possível gerar o gráfico do ECG porque o trecho válido é curto dema
 
     fig, ax = plt.subplots(figsize=(9.5, 2.8))
     ax.plot(tempo, trecho_plot, color="#1e3a8a", linewidth=1.0)
+    if picos_r.size > 0:
+        ax.scatter(
+            tempo[picos_r],
+            trecho_plot[picos_r],
+            color="#dc2626",
+            s=12,
+            zorder=3,
+            label="Picos R",
+        )
+
+    if rr_pairs:
+        y_min = float(np.min(trecho_plot))
+        y_max = float(np.max(trecho_plot))
+        y_span = max(y_max - y_min, 1e-6)
+        for i, (idx_r1, idx_r2, rr_ms) in enumerate(rr_pairs):
+            x1 = tempo[idx_r1]
+            x2 = tempo[idx_r2]
+            nivel = y_max - y_span * (0.14 + (i % 2) * 0.08)
+            ax.annotate(
+                "",
+                xy=(x2, nivel),
+                xytext=(x1, nivel),
+                arrowprops={"arrowstyle": "<->", "color": "#b91c1c", "lw": 0.8},
+            )
+            ax.text(
+                (x1 + x2) / 2,
+                nivel + y_span * 0.015,
+                f"{rr_ms:.0f} ms",
+                ha="center",
+                va="bottom",
+                fontsize=6.8,
+                color="#7f1d1d",
+                bbox={"boxstyle": "round,pad=0.12", "fc": "white", "ec": "none", "alpha": 0.75},
+            )
+
     ax.set_xlabel("Tempo (s)")
-    ax.set_ylabel("Amplitude (mV)")
-    ax.set_title("Trecho central do ECG do participante")
+    ax.set_ylabel("Amplitude (mV na saida do AD8232, ref. basal = 0)")
+    ax.set_title("Trecho central do ECG com marcação dos intervalos R-R")
     ax.grid(True, alpha=0.25, linewidth=0.5)
+    if picos_r.size > 0:
+        ax.legend(loc="upper right", fontsize=7)
     fig.tight_layout()
     fig.savefig(caminho_figura, dpi=180)
     plt.close(fig)
@@ -108,7 +162,9 @@ O gráfico abaixo ilustra um recorte temporal de 12 segundos do ECG, selecionado
 - **Derivação do traçado:** Derivação II (DII).
 - **Janela exibida:** {len(trecho) / fs:.1f} s (de {inicio_s:.1f} s até {fim_s:.1f} s da sessão).
 - **Amostras válidas no gráfico:** {len(trecho)} pontos a {fs} Hz.
-- **Amplitude observada:** de {float(np.min(trecho_plot)):.2f} mV a {float(np.max(trecho_plot)):.2f} mV.
+- **Amplitude observada (em mV):** de {float(np.min(trecho_plot)):.2f} mV a {float(np.max(trecho_plot)):.2f} mV (após remoção do baseline).
+- **Baseline removido (offset DC):** {baseline_mv:.2f} mV. Para recuperar o valor absoluto do eletrodo, some esse baseline ao valor do gráfico.
+- **Intervalos R-R no gráfico:** {len(rr_pairs)} (somente entre picos R consecutivos dentro de 300-2000 ms).
 """
     return secao, caminho_figura
 
