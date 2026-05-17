@@ -134,12 +134,12 @@ def _montar_markdown(
     if psqi:
         mapa_psqi = {
             "boa": "Boa",
-            "baixa": "Qualidade ruim",
+            "baixa": "Alterada",
             "ruim": "Ruim",
             "muito_ruim": "Muito ruim",
         }
         psqi_class = mapa_psqi.get(psqi.get("classificacao"), "N/D")
-    psqi_legenda = "0-5: boa | 6-10: qualidade ruim | 11-15: ruim | 16-21: muito ruim"
+    psqi_legenda = "0-5: boa | 6-10: alterada | 11-15: ruim | 16-21: muito ruim"
 
     ipaq_class = "N/D"
     if ipaq:
@@ -259,7 +259,7 @@ Cada componente vai de 0 (melhor) a 3 (pior), com escore global de 0 a 21.
 | C6 (Medicação) | {_valor(psqi.get("componente_6") if psqi else None)} |
 | C7 (Disfunção diurna) | {_valor(psqi.get("componente_7") if psqi else None)} |
 
-Classificação usada no sistema: 0-5 (boa), 6-10 (qualidade ruim), 11-15 (ruim), 16-21 (muito ruim).
+Classificação usada no sistema: 0-5 (boa), 6-10 (alterada), 11-15 (ruim), 16-21 (muito ruim).
 
 Referência: Buysse DJ et al. (1989). *Psychiatry Research*, 28(2):193-213.
 

@@ -1354,10 +1354,10 @@ function atualizarPSQIScore() {
 
 function getPSQIInfo(classificacao) {
   const mapaPSQI = {
-    'boa':       { rotulo: 'Boa',             cor: '#16a34a' },
-    'baixa':     { rotulo: 'Qualidade ruim',  cor: '#d97706' },
-    'ruim':      { rotulo: 'Ruim',            cor: '#dc2626' },
-    'muito_ruim':{ rotulo: 'Muito Ruim',      cor: '#991b1b' },
+    'boa':       { rotulo: 'Boa',        cor: '#16a34a' },
+    'baixa':     { rotulo: 'Alterada',   cor: '#d97706' },
+    'ruim':      { rotulo: 'Ruim',       cor: '#dc2626' },
+    'muito_ruim':{ rotulo: 'Muito Ruim', cor: '#991b1b' },
   };
   return mapaPSQI[classificacao] || { rotulo: classificacao || '—', cor: '#6b7280' };
 }
@@ -1824,7 +1824,7 @@ function mostrarPSQIResultado(psqi) {
   descEl.style.color = info.cor;
   const descricoes = {
     'boa':        'Qualidade do sono satisfatória (≤5 pontos).',
-    'baixa':      'Qualidade ruim do sono (6–10 pontos). Recomenda-se atenção aos hábitos de sono.',
+    'baixa':      'Qualidade do sono alterada (6–10 pontos). Recomenda-se atenção aos hábitos de sono.',
     'ruim':       'Qualidade do sono ruim (11–15 pontos). Sugere-se avaliação clínica especializada.',
     'muito_ruim': 'Qualidade do sono muito ruim (16–21 pontos). Forte recomendação de avaliação clínica.',
   };
