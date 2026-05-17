@@ -140,7 +140,7 @@ Não foi possível gerar o gráfico do ECG porque o trecho válido é curto dema
             )
 
     ax.set_xlabel("Tempo (s)")
-    ax.set_ylabel("Amplitude (mV na saida do AD8232, ref. basal = 0)")
+    ax.set_ylabel("Amp. (mV, saida AD8232)", fontsize=8)
     ax.set_title("Trecho central do ECG com marcação dos intervalos R-R")
     ax.grid(True, alpha=0.25, linewidth=0.5)
     if picos_r.size > 0:
