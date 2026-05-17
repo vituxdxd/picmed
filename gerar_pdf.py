@@ -78,9 +78,8 @@ Não foi possível gerar o gráfico do ECG porque o trecho válido é curto dema
     idx_fim = idx_inicio + pontos_trecho
     trecho = sinal[idx_inicio:idx_fim]
     trecho_orientado = processamento.FATOR_POLARIDADE_NEUROKIT * trecho
-    # Continua em mV: apenas remove o offset DC para centralizar o traçado em 0 mV.
-    baseline_mv = float(np.median(trecho_orientado))
-    trecho_plot = trecho_orientado - baseline_mv
+    # Mantém o offset DC e ajusta a escala para exibição no gráfico.
+    trecho_plot = trecho_orientado / 1000.0
     tempo = np.arange(trecho.size) / fs
 
     sinal_limpo = nk.ecg_clean(trecho_orientado, sampling_rate=fs, method="neurokit")
@@ -140,7 +139,7 @@ Não foi possível gerar o gráfico do ECG porque o trecho válido é curto dema
             )
 
     ax.set_xlabel("Tempo (s)")
-    ax.set_ylabel("Amp. (mV, saida AD8232)", fontsize=8)
+    ax.set_ylabel("Amp. (mV, saida AD8232, com offset DC)", fontsize=8)
     ax.set_title("Trecho central do ECG com marcação dos intervalos R-R")
     ax.grid(True, alpha=0.25, linewidth=0.5)
     if picos_r.size > 0:
@@ -162,8 +161,7 @@ O gráfico abaixo ilustra um recorte temporal de 12 segundos do ECG, selecionado
 - **Derivação do traçado:** Derivação II (DII).
 - **Janela exibida:** {len(trecho) / fs:.1f} s (de {inicio_s:.1f} s até {fim_s:.1f} s da sessão).
 - **Amostras válidas no gráfico:** {len(trecho)} pontos a {fs} Hz.
-- **Amplitude observada (em mV):** de {float(np.min(trecho_plot)):.2f} mV a {float(np.max(trecho_plot)):.2f} mV (após remoção do baseline).
-- **Baseline removido (offset DC):** {baseline_mv:.2f} mV. Para recuperar o valor absoluto do eletrodo, some esse baseline ao valor do gráfico.
+- **Amplitude observada (em mV):** de {float(np.min(trecho_plot)):.2f} mV a {float(np.max(trecho_plot)):.2f} mV (com offset DC mantido e escala ÷1000).
 - **Intervalos R-R no gráfico:** {len(rr_pairs)} (somente entre picos R consecutivos dentro de 300-2000 ms).
 """
     return secao, caminho_figura
