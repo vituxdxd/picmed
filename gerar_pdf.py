@@ -44,7 +44,7 @@ def _montar_secao_ecg(
     fs: int = 250,
     duracao_trecho_s: int = 12,
 ) -> tuple[str, Path | None]:
-    titulo = f"# 1. Trecho do ECG analisado ({duracao_trecho_s} s, repouso)"
+    titulo = f"# 1. Trecho do ECG ({duracao_trecho_s} s, repouso)"
 
     if not amostras_ecg:
         return (
@@ -100,9 +100,7 @@ Não foi possível gerar o gráfico do ECG porque o trecho válido é curto dema
 
     secao = f"""{titulo}
 
-O gráfico abaixo mostra um trecho central do sinal coletado nesta sessão, usado como referência visual para as métricas de VFC apresentadas na sequência.
-
-No total, as métricas de VFC foram calculadas a partir de 5 minutos de ECG.
+O gráfico abaixo ilustra um recorte temporal de 12 segundos do ECG, selecionado especificamente para a inspeção visual da qualidade do sinal e da morfologia da onda. Ressalta-se que, para o cálculo preciso das métricas de VFC apresentadas a seguir, foi utilizada a série temporal completa de 5 minutos de registro contínuo.
 
 ![Trecho do ECG do participante]({caminho_figura.as_posix()})
 
@@ -136,12 +134,12 @@ def _montar_markdown(
     if psqi:
         mapa_psqi = {
             "boa": "Boa",
-            "baixa": "Baixa",
+            "baixa": "Qualidade ruim",
             "ruim": "Ruim",
             "muito_ruim": "Muito ruim",
         }
         psqi_class = mapa_psqi.get(psqi.get("classificacao"), "N/D")
-    psqi_legenda = "0-5: boa | 6-10: baixa | 11-15: ruim | 16-21: muito ruim"
+    psqi_legenda = "0-5: boa | 6-10: qualidade ruim | 11-15: ruim | 16-21: muito ruim"
 
     ipaq_class = "N/D"
     if ipaq:
@@ -161,7 +159,12 @@ def _montar_markdown(
         stai_s = mapa_stai.get(stai.get("classificacao_s"), "N/D")
         stai_t = mapa_stai.get(stai.get("classificacao_t"), "N/D")
     stai_legenda = "6-9: baixo | 10-15: médio | 16-24: alto"
-    si_legenda = "Vagal (<50) | Equilibrado (50-149) | Atenção (150-299) | Alto risco (>=300)"
+    si_legenda = "<50: Predomínio Parassimpático | 50-149: Normotonia | 150-299: Predomínio Simpático Moderado | >=300: Simpaticotonia Acentuada"
+    dias_ativos_total = None
+    if ipaq:
+        dias_ativos_total = ipaq.get("dias_ativos_total")
+        if dias_ativos_total is not None:
+            dias_ativos_total = min(dias_ativos_total, 7)
 
     met_sentado = "N/D"
     if ipaq:
@@ -195,7 +198,7 @@ toc-depth: 2
 
 # Resumo executivo
 
-- **SI Baevsky:** {_valor(si, casas=1)}
+- **Índice de estresse de Baevsky (SI):** {_valor(si, casas=1)}
 - **Classificação SI:** {rotulo_si} — *{si_legenda}*
 - **PSS-10:** {_valor(pss10_score)} / 40 ({pss_rotulo}) — *Legenda: {pss_legenda}*
 - **PSQI (sono):** {_valor(psqi.get("escore_global") if psqi else None)} / 21 ({psqi_class}) — *Legenda: {psqi_legenda}*
@@ -210,8 +213,8 @@ As métricas de VFC refletem como o sistema nervoso autônomo está modulando o 
 
 | Métrica | Seu resultado | O que representa | Como interpretar no relatório |
 | --- | --- | --- | --- |
-| **SI Baevsky** | {_valor(si, casas=1)} | Índice de carga autonômica/estresse fisiológico calculado a partir dos intervalos RR. | <50: Vagal; 50-149: Equilibrado; 150-299: Atenção; >=300: Alto risco. |
-| **FC média** | {_valor(metricas_vfc.get("fc_media"), " bpm")} | Frequência cardíaca média durante o trecho analisado. | Útil como contexto fisiológico geral da coleta. |
+| **SI Baevsky** | {_valor(si, casas=1)} | Índice de carga autonômica/estresse fisiológico calculado a partir dos intervalos RR. | <50: Predomínio Parassimpático; 50-149: Normotonia; 150-299: Predomínio Simpático Moderado; >=300: Simpaticotonia Acentuada. |
+| **FC média** | {_valor(metricas_vfc.get("fc_media"), " bpm")} | Frequência cardíaca média durante a sessão analisada. | Útil como contexto fisiológico geral da coleta. |
 | **SDNN** | {_valor(metricas_vfc.get("sdnn_ms"), " ms")} | Variabilidade global dos intervalos RR (desvio-padrão). | Maior SDNN tende a indicar maior adaptabilidade autonômica. |
 | **RMSSD** | {_valor(metricas_vfc.get("rmssd_ms"), " ms")} | Oscilações batimento a batimento ligadas ao tônus parassimpático. | Maior RMSSD costuma indicar maior atividade vagal de curto prazo. |
 | **NN50** | {_valor(metricas_vfc.get("nn50"))} | Número de pares de RR com diferença absoluta >50 ms. | Complementa RMSSD/pNN50 na leitura da variabilidade rápida. |
@@ -256,7 +259,7 @@ Cada componente vai de 0 (melhor) a 3 (pior), com escore global de 0 a 21.
 | C6 (Medicação) | {_valor(psqi.get("componente_6") if psqi else None)} |
 | C7 (Disfunção diurna) | {_valor(psqi.get("componente_7") if psqi else None)} |
 
-Classificação usada no sistema: 0-5 (boa), 6-10 (baixa), 11-15 (ruim), 16-21 (muito ruim).
+Classificação usada no sistema: 0-5 (boa), 6-10 (qualidade ruim), 11-15 (ruim), 16-21 (muito ruim).
 
 Referência: Buysse DJ et al. (1989). *Psychiatry Research*, 28(2):193-213.
 
@@ -278,7 +281,7 @@ Fórmulas utilizadas:
 | MET vigorosa | {_valor(ipaq.get("met_vigorosa") if ipaq else None)} |
 | MET moderada | {_valor(ipaq.get("met_moderada") if ipaq else None)} |
 | MET caminhada | {_valor(ipaq.get("met_caminhada") if ipaq else None)} |
-| Dias ativos totais | {_valor(ipaq.get("dias_ativos_total") if ipaq else None, " dias/semana")} |
+| Dias ativos totais | {_valor(dias_ativos_total, " dias/semana")} |
 | Tempo sentado | {met_sentado} |
 
 Classificação adotada no sistema: sedentário (0), insuficiente (<600), ativo (600-1499), muito ativo (>=1500 MET-min/semana).

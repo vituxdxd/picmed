@@ -555,13 +555,13 @@ def interpretar_si(si: Optional[float]) -> dict:
     if si is None:
         return {"rotulo": "N/D", "cor": "#6b7280", "descricao": "Não disponível"}
     if si < 50:
-        return {"rotulo": "Vagal", "cor": "#3b82f6",
+        return {"rotulo": "Predomínio Parassimpático", "cor": "#3b82f6",
                 "descricao": "Predominância parassimpática. Comum em atletas e estados de relaxamento profundo."}
     if si < 150:
-        return {"rotulo": "Equilibrado", "cor": "#22c55e",
+        return {"rotulo": "Normotonia", "cor": "#22c55e",
                 "descricao": "Modulação autonômica dentro da faixa normal."}
     if si < 300:
-        return {"rotulo": "Atenção", "cor": "#eab308",
+        return {"rotulo": "Predomínio Simpático Moderado", "cor": "#eab308",
                 "descricao": "Dominância simpática moderada. Possível estresse fisiológico."}
-    return {"rotulo": "Alto Risco", "cor": "#ef4444",
+    return {"rotulo": "Simpaticotonia Acentuada", "cor": "#ef4444",
             "descricao": "Dominância simpática acentuada. Candidato ao grupo de risco 'Oculto' (PSS-10 vs SI)."}

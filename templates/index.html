@@ -1352,6 +1352,16 @@ function atualizarPSQIScore() {
   else scoreEl.style.color = 'var(--red)';
 }
 
+function getPSQIInfo(classificacao) {
+  const mapaPSQI = {
+    'boa':       { rotulo: 'Boa',             cor: '#16a34a' },
+    'baixa':     { rotulo: 'Qualidade ruim',  cor: '#d97706' },
+    'ruim':      { rotulo: 'Ruim',            cor: '#dc2626' },
+    'muito_ruim':{ rotulo: 'Muito Ruim',      cor: '#991b1b' },
+  };
+  return mapaPSQI[classificacao] || { rotulo: classificacao || '—', cor: '#6b7280' };
+}
+
 async function salvarPSQI() {
   const sid = document.getElementById('selSessaoForm').value;
   if (!sid) return toast('Selecione uma sessão', 'err');
@@ -1377,7 +1387,10 @@ async function salvarPSQI() {
   };
 
   const r = await api('/api/psqi', 'POST', dados);
-  if (r.ok) toast(`PSQI salvo — Escore: ${r.psqi.escore_global}/21 (${r.psqi.classificacao})`);
+  if (r.ok) {
+    const infoPSQI = getPSQIInfo(r.psqi.classificacao);
+    toast(`PSQI salvo — Escore: ${r.psqi.escore_global}/21 (${infoPSQI.rotulo})`);
+  }
   else toast(r.erro || 'Erro ao salvar PSQI', 'err');
 }
 
@@ -1801,13 +1814,7 @@ function mostrarPSQIResultado(psqi) {
 
   const classificacao = psqi.classificacao || '';
   const badge = document.getElementById('badgePSQI');
-  const mapaPSQI = {
-    'boa':       { rotulo: 'Boa',       cor: '#16a34a' },
-    'baixa':     { rotulo: 'Baixa',     cor: '#d97706' },
-    'ruim':      { rotulo: 'Ruim',      cor: '#dc2626' },
-    'muito_ruim':{ rotulo: 'Muito Ruim',cor: '#991b1b' },
-  };
-  const info = mapaPSQI[classificacao] || { rotulo: classificacao, cor: '#6b7280' };
+  const info = getPSQIInfo(classificacao);
   badge.textContent = info.rotulo;
   badge.style.background = info.cor + '22';
   badge.style.color = info.cor;
@@ -1817,7 +1824,7 @@ function mostrarPSQIResultado(psqi) {
   descEl.style.color = info.cor;
   const descricoes = {
     'boa':        'Qualidade do sono satisfatória (≤5 pontos).',
-    'baixa':      'Baixa qualidade do sono (6–10 pontos). Recomenda-se atenção aos hábitos de sono.',
+    'baixa':      'Qualidade ruim do sono (6–10 pontos). Recomenda-se atenção aos hábitos de sono.',
     'ruim':       'Qualidade do sono ruim (11–15 pontos). Sugere-se avaliação clínica especializada.',
     'muito_ruim': 'Qualidade do sono muito ruim (16–21 pontos). Forte recomendação de avaliação clínica.',
   };
