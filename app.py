@@ -667,19 +667,36 @@ def api_banco_stats():
 # ROTAS — CAMADA 3: PROCESSAMENTO VFC
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@app.route("/api/processar/<int:id_sessao>", methods=["POST"])
-def api_processar(id_sessao: int):
+def _processar_sessao_vfc(id_sessao: int):
     amostras = banco.carregar_ecg_sessao(id_sessao)
     if not amostras:
-        return jsonify({"erro": "Sessão sem dados ECG."}), 404
+        return None, ({"erro": "Sessão sem dados ECG."}, 404)
 
     resultado = processamento.processar_sessao(amostras)
     if "erro" in resultado:
-        return jsonify(resultado), 422
+        return None, (resultado, 422)
 
     banco.salvar_metricas(id_sessao, resultado)
     si = resultado.get("si_baevsky")
     resultado["interpretacao_si"] = processamento.interpretar_si(si)
+    return resultado, None
+
+
+@app.route("/api/processar/<int:id_sessao>", methods=["POST"])
+def api_processar(id_sessao: int):
+    resultado, erro = _processar_sessao_vfc(id_sessao)
+    if erro:
+        payload, status = erro
+        return jsonify(payload), status
+    return jsonify(resultado)
+
+
+@app.route("/api/reprocessar/<int:id_sessao>", methods=["POST"])
+def api_reprocessar(id_sessao: int):
+    resultado, erro = _processar_sessao_vfc(id_sessao)
+    if erro:
+        payload, status = erro
+        return jsonify(payload), status
     return jsonify(resultado)
 
 

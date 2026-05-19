@@ -1721,6 +1721,7 @@ async function carregarSessoes() {
       <td>${statusBadge}</td>
       <td>
         ${s.fim_em && !s.processada ? `<button class="btn btn-primary btn-sm" onclick="processarSessao(${s.id})">Processar</button>` : ''}
+        ${s.fim_em && s.processada ? `<button class="btn btn-outline btn-sm" onclick="reprocessarSessao(${s.id})">Reprocessar</button>` : ''}
         ${s.processada ? `<button class="btn btn-outline btn-sm" onclick="verResultado(${s.id})">Ver</button>` : ''}
         ${s.processada ? `<a class="btn btn-outline btn-sm" href="/api/relatorio/${s.id}/pdf" style="text-decoration:none;">📄 PDF</a>` : ''}
         <button class="btn btn-red btn-sm" onclick='excluirSessao(${s.id}, ${JSON.stringify(s.codigo || "")})'>Apagar sessão</button>
@@ -1735,6 +1736,21 @@ async function processarSessao(id) {
   const r = await api(`/api/processar/${id}`, 'POST');
   if (r.erro) { toast(r.erro, 'err'); return; }
   toast('Processamento concluído');
+  carregarSessoes();
+  mostrarResultado(r);
+}
+
+async function reprocessarSessao(id) {
+  const confirmado = window.confirm(
+    `Reprocessar a sessão #${id}?\n\n` +
+    'As métricas atuais serão substituídas pelos novos cálculos.'
+  );
+  if (!confirmado) return;
+
+  toast('Reprocessando...');
+  const r = await api(`/api/reprocessar/${id}`, 'POST');
+  if (r.erro) { toast(r.erro, 'err'); return; }
+  toast('Reprocessamento concluído');
   carregarSessoes();
   mostrarResultado(r);
 }
