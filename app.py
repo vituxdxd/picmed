@@ -394,7 +394,41 @@ def api_excluir_participante(id_participante: int):
 
 @app.route("/api/sessoes", methods=["GET"])
 def api_listar_sessoes():
-    return jsonify(banco.listar_sessoes())
+    id_participante = request.args.get("id_participante")
+    if id_participante is None:
+        return jsonify(banco.listar_sessoes())
+
+    try:
+        id_participante_int = int(id_participante)
+    except (TypeError, ValueError):
+        return jsonify({"erro": "id_participante inválido"}), 400
+
+    return jsonify(banco.listar_sessoes(id_participante=id_participante_int))
+
+
+@app.route("/api/sessao/<int:id_sessao>", methods=["DELETE"])
+def api_excluir_sessao(id_sessao: int):
+    with _lock_sessao:
+        id_ativo = _sessao_atual["id_sessao"]
+        sessao_ativa_mesma_sessao = (
+            _sessao_atual["ativa"]
+            and id_ativo is not None
+            and int(id_ativo) == id_sessao
+        )
+
+    if sessao_ativa_mesma_sessao:
+        return jsonify({
+            "erro": "Pare a leitura/encerre a sessão ativa antes de excluir esta sessão."
+        }), 409
+
+    try:
+        banco.flush_final()
+        resumo = banco.excluir_sessao_completa(id_sessao)
+        if not resumo:
+            return jsonify({"erro": "Sessão não encontrada."}), 404
+        return jsonify({"ok": True, **resumo})
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
 
 
 @app.route("/api/sessao/iniciar", methods=["POST"])

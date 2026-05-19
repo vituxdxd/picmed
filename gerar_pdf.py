@@ -45,7 +45,7 @@ def _classificacao_pss10(score: int | None) -> tuple[str, str]:
 def _montar_secao_ecg(
     amostras_ecg: list[dict] | None,
     fs: int = 250,
-    duracao_trecho_s: int = 12,
+    duracao_trecho_s: int = 6,
 ) -> tuple[str, Path | None]:
     titulo = f"# 1. Trecho do ECG ({duracao_trecho_s} s, repouso)"
 
@@ -153,7 +153,7 @@ Não foi possível gerar o gráfico do ECG porque o trecho válido é curto dema
 
     secao = f"""{titulo}
 
-O gráfico abaixo ilustra um recorte temporal de 12 segundos do ECG, selecionado especificamente para a inspeção visual da qualidade do sinal e da morfologia da onda. Ressalta-se que, para o cálculo preciso das métricas de VFC apresentadas a seguir, foi utilizada a série temporal completa de 5 minutos de registro contínuo.
+O gráfico abaixo ilustra um recorte temporal de {duracao_trecho_s} segundos do ECG, selecionado especificamente para a inspeção visual da qualidade do sinal e da morfologia da onda. Ressalta-se que, para o cálculo preciso das métricas de VFC apresentadas a seguir, foi utilizada a série temporal completa de 5 minutos de registro contínuo.
 
 ![Trecho do ECG do participante]({caminho_figura.as_posix()})
 

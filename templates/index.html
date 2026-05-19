@@ -123,14 +123,16 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
 .alert-warn { background:var(--amber-light); color:#92400e; }
 
 /* PSS scale */
-.pss-row { display:grid; grid-template-columns:1fr auto; gap:0.5rem; align-items:center; padding:0.6rem 0; border-bottom:1px solid var(--border-light); }
-.pss-question { font-size:0.84rem; color:var(--text-dim); }
-.pss-options { display:flex; gap:0.25rem; }
-.pss-opt { min-width:32px; width:auto; padding:0.15rem 0.35rem; height:auto; min-height:48px; border:1px solid var(--border); border-radius:var(--radius-sm); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:0.78rem; font-weight:600; color:var(--text-mute); background:#fff; transition:all 0.15s; gap:1px; }
+.pss-row { display:grid; grid-template-columns:1fr auto; gap:0.5rem; align-items:start; padding:0.6rem 0; border-bottom:1px solid var(--border-light); }
+.pss-question { font-size:0.84rem; color:var(--text-dim); min-width:0; }
+.pss-options { display:grid; grid-template-columns:repeat(5, minmax(44px, 1fr)); gap:0.35rem; min-width:0; }
+.pss-opt { min-width:44px; width:100%; padding:0.25rem 0.35rem; height:auto; min-height:56px; border:1px solid var(--border); border-radius:var(--radius-sm); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:0.78rem; font-weight:600; color:var(--text-mute); background:#fff; transition:all 0.15s; }
 .pss-opt .opt-num { font-size:0.82rem; font-weight:700; line-height:1.1; }
-.pss-opt .opt-lbl { font-size:0.50rem; font-weight:400; line-height:1.1; text-align:center; white-space:nowrap; }
+.pss-opt .opt-lbl { font-size:0.65rem; font-weight:400; line-height:1.15; text-align:center; word-break:break-word; max-width:100%; }
 .pss-opt:hover { border-color:var(--primary); color:var(--primary); }
 .pss-opt.sel { background:var(--primary); color:#fff; border-color:var(--primary); }
+@media(max-width:1024px) { .pss-row { grid-template-columns:1fr; } .pss-options { width:100%; grid-template-columns:repeat(5, minmax(0, 1fr)); } .pss-opt { min-width:0; } }
+@media(max-width:480px) { .pss-options { grid-template-columns:repeat(5, minmax(36px, 1fr)); } .pss-opt { min-height:48px; padding:0.15rem 0.25rem; } .pss-opt .opt-lbl { font-size:0.55rem; } }
 
 /* Responsive */
 @media(max-width:768px) { .main{padding:1rem;} .header{padding:0.6rem 1rem;} }
@@ -312,9 +314,20 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
 
   <div class="card">
     <div class="card-title">Selecionar Sessão</div>
-    <select class="form-select" id="selSessaoForm" onchange="onSessaoSelecionada()">
-      <option value="">Selecione uma sessão...</option>
-    </select>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Participante</label>
+        <select class="form-select" id="selParticipanteForm" onchange="onParticipanteFormSelecionado()">
+          <option value="">Todos os participantes</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sessão encerrada</label>
+        <select class="form-select" id="selSessaoForm" onchange="onSessaoSelecionada()">
+          <option value="">Selecione uma sessão...</option>
+        </select>
+      </div>
+    </div>
   </div>
 
   <div id="formArea" style="display:none;">
@@ -1138,8 +1151,11 @@ async function carregarParticipantes() {
   const ps = await api('/api/participantes');
   const tb = document.getElementById('tbParticipantes');
   const selLeitura = document.getElementById('selParticipanteLeitura');
+  const selForm = document.getElementById('selParticipanteForm');
+  const participanteFormSelecionado = selForm ? selForm.value : '';
   tb.innerHTML = '';
   selLeitura.innerHTML = '<option value="">Sem participante (teste)</option>';
+  if (selForm) selForm.innerHTML = '<option value="">Todos os participantes</option>';
   const cicloLabel = { basico:'Básico', clinico:'Clínico', internato:'Internato' };
   ps.forEach(p => {
     tb.innerHTML += `<tr>
@@ -1150,7 +1166,18 @@ async function carregarParticipantes() {
       <td><button class="btn btn-red btn-sm" onclick='excluirParticipante(${p.id}, ${JSON.stringify(p.codigo || "")})'>Apagar participante</button></td>
     </tr>`;
     selLeitura.innerHTML += `<option value="${p.id}">${p.codigo} (${cicloLabel[p.ciclo]||p.ciclo})</option>`;
+    if (selForm) {
+      selForm.innerHTML += `<option value="${p.id}">${p.codigo} (${cicloLabel[p.ciclo]||p.ciclo})</option>`;
+    }
   });
+  if (selForm) {
+    if (participanteFormSelecionado && ps.some(p => String(p.id) === participanteFormSelecionado)) {
+      selForm.value = participanteFormSelecionado;
+    }
+    if (document.getElementById('coleta').classList.contains('on')) {
+      carregarSessoesForm();
+    }
+  }
 }
 
 async function criarParticipante() {
@@ -1184,7 +1211,7 @@ function initPSS() {
       <div class="pss-question"><strong>${i+1}.</strong> ${q}</div>
       <div class="pss-options">
         ${[0,1,2,3,4].map(v => {
-          const labels = ['Nunca','Quase<br>nunca','Às<br>vezes','Freq.','Muito<br>freq.'];
+          const labels = ['Nunca','Quase nunca','Às vezes','Freq.','Muito freq.'];
           return `<div class="pss-opt" data-q="${i}" data-v="${v}"><span class="opt-num">${v}</span><span class="opt-lbl">${labels[v]}</span></div>`;
         }).join('')}
       </div>`;
@@ -1481,7 +1508,11 @@ async function salvarSTAI() {
 // COLETA FORMS
 // ═══════════════════════════════════════════════════════════════
 async function carregarSessoesForm() {
-  const sessoes = await api('/api/sessoes');
+  const selParticipante = document.getElementById('selParticipanteForm');
+  const idParticipante = selParticipante ? selParticipante.value : '';
+  const sidSelecionado = document.getElementById('selSessaoForm').value;
+  const query = idParticipante ? `?id_participante=${encodeURIComponent(idParticipante)}` : '';
+  const sessoes = await api(`/api/sessoes${query}`);
   const sel = document.getElementById('selSessaoForm');
   sel.innerHTML = '<option value="">Selecione uma sessão...</option>';
   sessoes.forEach(s => {
@@ -1489,6 +1520,19 @@ async function carregarSessoesForm() {
       sel.innerHTML += `<option value="${s.id}">Sessão #${s.id} — ${s.codigo} (${s.inicio_em})</option>`;
     }
   });
+
+  const existeSessaoSelecionada = sidSelecionado && Array.from(sel.options).some(opt => opt.value === sidSelecionado);
+  if (existeSessaoSelecionada) {
+    sel.value = sidSelecionado;
+  } else {
+    document.getElementById('formArea').style.display = 'none';
+  }
+}
+
+function onParticipanteFormSelecionado() {
+  document.getElementById('selSessaoForm').value = '';
+  document.getElementById('formArea').style.display = 'none';
+  carregarSessoesForm();
 }
 
 function toggleTabagismoFreq() {
@@ -1499,6 +1543,10 @@ function toggleTabagismoFreq() {
 function togglePsicoterapiaFreq() {
   const psi = document.getElementById('selPsicoterapia').value;
   document.getElementById('grpPsicoterapiaFreq').style.display = psi === '1' ? '' : 'none';
+}
+
+function coalesce(value, fallback) {
+  return value === null || value === undefined ? fallback : value;
 }
 
 async function onSessaoSelecionada() {
@@ -1519,7 +1567,7 @@ async function onSessaoSelecionada() {
             for (let i = 0; i < 10; i++) {
               pssAnswers[i] = saved[i];
               const container = document.getElementById('pssContainer');
-              const opt = container?.querySelector(`.pss-opt[data-q="${i}"][data-v="${saved[i]}"]`);
+              const opt = container ? container.querySelector(`.pss-opt[data-q="${i}"][data-v="${saved[i]}"]`) : null;
               if (opt) {
                 opt.parentNode.querySelectorAll('.pss-opt').forEach(o => o.classList.remove('sel'));
                 opt.classList.add('sel');
@@ -1529,17 +1577,17 @@ async function onSessaoSelecionada() {
           }
         } catch(e) {}
       }
-      document.getElementById('inpCafeina').value = inv.cafeina_mg ?? '';
-      document.getElementById('inpMedicacao').value = inv.medicacao ?? '';
-      document.getElementById('selTabagismo').value = inv.tabagismo ?? '0';
+      document.getElementById('inpCafeina').value = coalesce(inv.cafeina_mg, '');
+      document.getElementById('inpMedicacao').value = coalesce(inv.medicacao, '');
+      document.getElementById('selTabagismo').value = coalesce(inv.tabagismo, '0');
       if (inv.tabagismo) {
-        document.getElementById('selTabagismoFreq').value = inv.tabagismo_freq ?? '';
+        document.getElementById('selTabagismoFreq').value = coalesce(inv.tabagismo_freq, '');
         document.getElementById('grpTabagismoFreq').style.display = '';
       }
-      document.getElementById('selEtilismo').value = inv.etilismo_24h ?? '0';
-      document.getElementById('selPsicoterapia').value = inv.psicoterapia ?? '0';
+      document.getElementById('selEtilismo').value = coalesce(inv.etilismo_24h, '0');
+      document.getElementById('selPsicoterapia').value = coalesce(inv.psicoterapia, '0');
       if (inv.psicoterapia) {
-        document.getElementById('selPsicoterapiaFreq').value = inv.psicoterapia_freq ?? '';
+        document.getElementById('selPsicoterapiaFreq').value = coalesce(inv.psicoterapia_freq, '');
         document.getElementById('grpPsicoterapiaFreq').style.display = '';
       }
     }
@@ -1549,14 +1597,14 @@ async function onSessaoSelecionada() {
   try {
     const ipaq = await api(`/api/ipaq/${sid}`).catch(() => null);
     if (ipaq && !ipaq.erro) {
-      document.getElementById('ipaqQ1').value = ipaq.q1_vigorosa_dias ?? 0;
-      document.getElementById('ipaqQ2').value = ipaq.q2_vigorosa_min ?? 0;
-      document.getElementById('ipaqQ3').value = ipaq.q3_moderada_dias ?? 0;
-      document.getElementById('ipaqQ4').value = ipaq.q4_moderada_min ?? 0;
-      document.getElementById('ipaqQ5').value = ipaq.q5_caminhada_dias ?? 0;
-      document.getElementById('ipaqQ6').value = ipaq.q6_caminhada_min ?? 0;
-      document.getElementById('ipaqQ7h').value = ipaq.q7_sentado_horas ?? 0;
-      document.getElementById('ipaqQ7m').value = ipaq.q7_sentado_min ?? 0;
+      document.getElementById('ipaqQ1').value = coalesce(ipaq.q1_vigorosa_dias, 0);
+      document.getElementById('ipaqQ2').value = coalesce(ipaq.q2_vigorosa_min, 0);
+      document.getElementById('ipaqQ3').value = coalesce(ipaq.q3_moderada_dias, 0);
+      document.getElementById('ipaqQ4').value = coalesce(ipaq.q4_moderada_min, 0);
+      document.getElementById('ipaqQ5').value = coalesce(ipaq.q5_caminhada_dias, 0);
+      document.getElementById('ipaqQ6').value = coalesce(ipaq.q6_caminhada_min, 0);
+      document.getElementById('ipaqQ7h').value = coalesce(ipaq.q7_sentado_horas, 0);
+      document.getElementById('ipaqQ7m').value = coalesce(ipaq.q7_sentado_min, 0);
       atualizarIPAQBadge();
     }
   } catch(e) {}
@@ -1565,18 +1613,18 @@ async function onSessaoSelecionada() {
   try {
     const stai = await api(`/api/stai/${sid}`).catch(() => null);
     if (stai && !stai.erro) {
-      document.getElementById('staiS1').value = stai.s1_calmo ?? 1;
-      document.getElementById('staiS3').value = stai.s3_tenso ?? 1;
-      document.getElementById('staiS5').value = stai.s5_vontade ?? 1;
-      document.getElementById('staiS12').value = stai.s12_nervoso ?? 1;
-      document.getElementById('staiS15').value = stai.s15_descontraido ?? 1;
-      document.getElementById('staiS17').value = stai.s17_preocupado ?? 1;
-      document.getElementById('staiT7').value = stai.t7_calmo ?? 1;
-      document.getElementById('staiT9').value = stai.t9_preocupa ?? 1;
-      document.getElementById('staiT13').value = stai.t13_seguro ?? 1;
-      document.getElementById('staiT20').value = stai.t20_tenso_prob ?? 1;
-      document.getElementById('staiT21').value = stai.t21_nerv_inquieto ?? 1;
-      document.getElementById('staiT25').value = stai.t25_decisoes ?? 1;
+      document.getElementById('staiS1').value = coalesce(stai.s1_calmo, 1);
+      document.getElementById('staiS3').value = coalesce(stai.s3_tenso, 1);
+      document.getElementById('staiS5').value = coalesce(stai.s5_vontade, 1);
+      document.getElementById('staiS12').value = coalesce(stai.s12_nervoso, 1);
+      document.getElementById('staiS15').value = coalesce(stai.s15_descontraido, 1);
+      document.getElementById('staiS17').value = coalesce(stai.s17_preocupado, 1);
+      document.getElementById('staiT7').value = coalesce(stai.t7_calmo, 1);
+      document.getElementById('staiT9').value = coalesce(stai.t9_preocupa, 1);
+      document.getElementById('staiT13').value = coalesce(stai.t13_seguro, 1);
+      document.getElementById('staiT20').value = coalesce(stai.t20_tenso_prob, 1);
+      document.getElementById('staiT21').value = coalesce(stai.t21_nerv_inquieto, 1);
+      document.getElementById('staiT25').value = coalesce(stai.t25_decisoes, 1);
       atualizarSTAIFormBadge();
     }
   } catch(e) {}
@@ -1585,20 +1633,21 @@ async function onSessaoSelecionada() {
   try {
     const psqi = await api(`/api/psqi/${sid}`).catch(() => null);
     if (psqi && !psqi.erro) {
-      document.getElementById('psqiQ1').value = psqi.q1_hora_deitar ?? '23:00';
-      document.getElementById('psqiQ2').value = psqi.q2_min_adormecer ?? 15;
-      document.getElementById('psqiQ3').value = psqi.q3_hora_levantar ?? '07:00';
-      document.getElementById('psqiQ4').value = psqi.q4_horas_sono ?? 7;
-      document.getElementById('psqiQ6').value = psqi.q6_qualidade ?? 0;
-      document.getElementById('psqiQ7').value = psqi.q7_medicamento ?? 0;
-      document.getElementById('psqiQ8').value = psqi.q8_ficar_acordado ?? 0;
-      document.getElementById('psqiQ9').value = psqi.q9_entusiasmo ?? 0;
-      document.getElementById('psqiQ10').value = psqi.q10_parceiro ?? 0;
+      document.getElementById('psqiQ1').value = coalesce(psqi.q1_hora_deitar, '23:00');
+      document.getElementById('psqiQ2').value = coalesce(psqi.q2_min_adormecer, 15);
+      document.getElementById('psqiQ3').value = coalesce(psqi.q3_hora_levantar, '07:00');
+      document.getElementById('psqiQ4').value = coalesce(psqi.q4_horas_sono, 7);
+      document.getElementById('psqiQ6').value = coalesce(psqi.q6_qualidade, 0);
+      document.getElementById('psqiQ7').value = coalesce(psqi.q7_medicamento, 0);
+      document.getElementById('psqiQ8').value = coalesce(psqi.q8_ficar_acordado, 0);
+      document.getElementById('psqiQ9').value = coalesce(psqi.q9_entusiasmo, 0);
+      document.getElementById('psqiQ10').value = coalesce(psqi.q10_parceiro, 0);
       // Q5 items
       const q5keys = ['q5a','q5b','q5c','q5d','q5e','q5f','q5g','q5h','q5i','q5j'];
       q5keys.forEach(k => {
         const container = document.getElementById('psqiQ5Container');
-        const opt = container?.querySelector(`.pss-opt[data-q="${k}"][data-v="${psqi[k] ?? 0}"]`);
+        const itemValue = coalesce(psqi[k], 0);
+        const opt = container ? container.querySelector(`.pss-opt[data-q="${k}"][data-v="${itemValue}"]`) : null;
         if (opt) {
           opt.parentNode.querySelectorAll('.pss-opt').forEach(o => o.classList.remove('sel'));
           opt.classList.add('sel');
@@ -1674,6 +1723,7 @@ async function carregarSessoes() {
         ${s.fim_em && !s.processada ? `<button class="btn btn-primary btn-sm" onclick="processarSessao(${s.id})">Processar</button>` : ''}
         ${s.processada ? `<button class="btn btn-outline btn-sm" onclick="verResultado(${s.id})">Ver</button>` : ''}
         ${s.processada ? `<a class="btn btn-outline btn-sm" href="/api/relatorio/${s.id}/pdf" style="text-decoration:none;">📄 PDF</a>` : ''}
+        <button class="btn btn-red btn-sm" onclick='excluirSessao(${s.id}, ${JSON.stringify(s.codigo || "")})'>Apagar sessão</button>
         <button class="btn btn-red btn-sm" onclick='excluirParticipante(${s.id_participante}, ${JSON.stringify(s.codigo || "")})'>Apagar participante</button>
       </td>
     </tr>`;
@@ -1704,6 +1754,35 @@ async function verResultado(id) {
   else document.getElementById('ipaqResultCard').style.display = 'none';
   if (stai && !stai.erro) mostrarSTAIResultado(stai);
   else document.getElementById('staiResultCard').style.display = 'none';
+}
+
+async function excluirSessao(idSessao, codigo='') {
+  if (!idSessao) return;
+  const identificacao = codigo ? `participante ${codigo}` : 'participante selecionado';
+  const confirmado = window.confirm(
+    `Confirma apagar a sessão #${idSessao} (${identificacao})?\n\n` +
+    'Esta ação remove ECG bruto, métricas e formulários desta sessão e não pode ser desfeita.'
+  );
+  if (!confirmado) return;
+
+  try {
+    const r = await api(`/api/sessao/${idSessao}`, 'DELETE');
+    if (!r.ok) {
+      toast(r.erro || 'Falha ao apagar sessão', 'err');
+      return;
+    }
+
+    document.getElementById('resultArea').style.display = 'none';
+    toast(`Sessão #${r.id_sessao} removida (${r.total_amostras} amostras apagadas)`);
+    await Promise.all([
+      carregarSessoes(),
+      carregarParticipantes(),
+      carregarStats(),
+      carregarSessoesForm(),
+    ]);
+  } catch (e) {
+    toast('Erro de comunicação ao apagar sessão', 'err');
+  }
 }
 
 async function excluirParticipante(idParticipante, codigo='') {

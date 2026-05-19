@@ -296,6 +296,46 @@ def excluir_participante_completo(id_participante: int) -> Optional[dict]:
         }
 
 
+def excluir_sessao_completa(id_sessao: int) -> Optional[dict]:
+    """
+    Remove uma sessão específica e todos os dados relacionados
+    (ECG bruto, métricas e formulários).
+    """
+    with _lock_escrita:
+        conn = _conectar()
+        sessao = conn.execute("""
+            SELECT s.id, s.id_participante, p.codigo
+            FROM sessoes s
+            JOIN participantes p ON p.id = s.id_participante
+            WHERE s.id = ?
+        """, (id_sessao,)).fetchone()
+        if not sessao:
+            conn.close()
+            return None
+
+        total_amostras = conn.execute(
+            "SELECT COUNT(*) FROM ecg_bruto WHERE id_sessao = ?",
+            (id_sessao,),
+        ).fetchone()[0]
+
+        conn.execute("DELETE FROM stai WHERE id_sessao = ?", (id_sessao,))
+        conn.execute("DELETE FROM inventario WHERE id_sessao = ?", (id_sessao,))
+        conn.execute("DELETE FROM ipaq WHERE id_sessao = ?", (id_sessao,))
+        conn.execute("DELETE FROM psqi WHERE id_sessao = ?", (id_sessao,))
+        conn.execute("DELETE FROM metricas_vfc WHERE id_sessao = ?", (id_sessao,))
+        conn.execute("DELETE FROM ecg_bruto WHERE id_sessao = ?", (id_sessao,))
+        conn.execute("DELETE FROM sessoes WHERE id = ?", (id_sessao,))
+        conn.commit()
+        conn.close()
+
+        return {
+            "id_sessao": int(sessao["id"]),
+            "id_participante": int(sessao["id_participante"]),
+            "codigo": sessao["codigo"],
+            "total_amostras": int(total_amostras),
+        }
+
+
 # ─── Sessões ──────────────────────────────────────────────────────────────────
 def abrir_sessao(id_participante: int) -> int:
     """Cria uma nova sessão e retorna seu id."""
@@ -326,9 +366,9 @@ def fechar_sessao(id_sessao: int, total_amostras: int, qualidade: str = "boa"):
         conn.close()
 
 
-def listar_sessoes() -> list[dict]:
+def listar_sessoes(id_participante: Optional[int] = None) -> list[dict]:
     conn = _conectar()
-    rows = conn.execute("""
+    query = """
         SELECT s.*, p.codigo, p.ciclo,
                m.si_baevsky, m.rmssd_ms, m.sdnn_ms,
                i.pss10_score,
@@ -338,8 +378,13 @@ def listar_sessoes() -> list[dict]:
         LEFT JOIN metricas_vfc m ON m.id_sessao = s.id
         LEFT JOIN inventario i ON i.id_sessao = s.id
         LEFT JOIN psqi q ON q.id_sessao = s.id
-        ORDER BY s.inicio_em DESC
-    """).fetchall()
+    """
+    params: tuple = ()
+    if id_participante is not None:
+        query += " WHERE s.id_participante = ?"
+        params = (id_participante,)
+    query += " ORDER BY s.inicio_em DESC"
+    rows = conn.execute(query, params).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -465,7 +510,7 @@ def salvar_inventario(id_sessao: int, dados: dict):
                 "psicoterapia_freq": dados.get("psicoterapia_freq"),
             }
 
-            conn.execute("""
+        conn.execute("""
             INSERT OR REPLACE INTO inventario
                 (id_sessao, pss10_score, pss10_answers, cafeina_mg,
                  tabagismo, tabagismo_freq,
