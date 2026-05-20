@@ -47,7 +47,7 @@ O sistema utiliza os seguintes componentes:
     *   `neurokit2`: Processamento de sinais biológicos.
     *   `numpy`: Cálculos numéricos.
     *   `matplotlib`: Geração do gráfico do trecho de ECG no relatório.
-    *   `pandoc` + `texlive-xetex`: Geração dos relatórios em PDF via Markdown + XeLaTeX.
+    *   `pandoc` + `XeLaTeX` (TeX Live no Linux, MiKTeX no Windows): Geração dos relatórios em PDF via Markdown + XeLaTeX.
     *   `sqlite3` (stdlib do Python): Armazenamento de dados.
 
 ## 🚀 Como Executar
@@ -68,6 +68,10 @@ source .venv/bin/activate  # No Windows: .venv\Scripts\activate
 
 # Dependências de sistema para PDF (Linux)
 sudo apt-get update && sudo apt-get install -y pandoc texlive-xetex
+
+# Dependências de sistema para PDF (Windows - PowerShell)
+winget install --id JohnMacFarlane.Pandoc -e
+winget install --id MiKTeX.MiKTeX -e
 
 # Instale as dependências
 pip install -r requirements.txt

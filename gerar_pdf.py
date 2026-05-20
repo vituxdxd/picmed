@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import date
 from io import BytesIO
 from pathlib import Path
+import platform
 import shutil
 import subprocess
 import tempfile
@@ -366,18 +367,38 @@ Relatório gerado automaticamente para fins acadêmicos e informativos.
 """
 
 
+def _instrucao_pandoc() -> str:
+    sistema = platform.system().lower()
+    if sistema == "windows":
+        return (
+            "Instale com: winget install --id JohnMacFarlane.Pandoc -e "
+            "(ou choco install pandoc)"
+        )
+    if sistema == "darwin":
+        return "Instale com: brew install pandoc"
+    return "Instale com: sudo apt-get update && sudo apt-get install -y pandoc"
+
+
+def _instrucao_xelatex() -> str:
+    sistema = platform.system().lower()
+    if sistema == "windows":
+        return (
+            "Instale o MiKTeX (inclui xelatex): winget install --id MiKTeX.MiKTeX -e "
+            "(ou choco install miktex)"
+        )
+    if sistema == "darwin":
+        return "Instale com: brew install --cask mactex-no-gui"
+    return "Instale com: sudo apt-get update && sudo apt-get install -y texlive-xetex"
+
+
 def _gerar_pdf_via_pandoc(markdown: str) -> bytes:
     pandoc_bin = shutil.which("pandoc")
     xelatex_bin = shutil.which("xelatex")
 
     if not pandoc_bin:
-        raise RuntimeError(
-            "Pandoc não encontrado no sistema. Instale com: sudo apt-get install pandoc"
-        )
+        raise RuntimeError(f"Pandoc não encontrado no sistema. {_instrucao_pandoc()}")
     if not xelatex_bin:
-        raise RuntimeError(
-            "XeLaTeX não encontrado no sistema. Instale com: sudo apt-get install texlive-xetex"
-        )
+        raise RuntimeError(f"XeLaTeX não encontrado no sistema. {_instrucao_xelatex()}")
 
     with tempfile.TemporaryDirectory(prefix="picmed_pdf_") as tmp_dir:
         arquivo_md = tempfile.NamedTemporaryFile(
