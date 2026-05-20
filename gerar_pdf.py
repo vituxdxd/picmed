@@ -14,6 +14,9 @@ import shutil
 import subprocess
 import tempfile
 
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import neurokit2 as nk
 import numpy as np
@@ -240,13 +243,16 @@ author: "PICMED UNICEPLAC"
 date: "{date.today().isoformat()}"
 lang: "pt-BR"
 titlepage: true
-titlepage-color: "1e3a8a"
-titlepage-text-color: "ffffff"
-titlepage-rule-color: "ffffff"
+titlepage-color: "picmedblue"
+titlepage-text-color: "white"
+titlepage-rule-color: "white"
 titlepage-rule-height: 2
 book: true
 toc: true
 toc-depth: 2
+header-includes:
+  - '\\usepackage{{xcolor}}'
+  - '\\definecolor{{picmedblue}}{{HTML}}{{1E3A8A}}'
 ---
 
 > AVISO IMPORTANTE: Este relatório foi elaborado exclusivamente para fins acadêmicos e informativos. O presente documento não constitui um diagnóstico ou laudo técnico, tampouco substitui a consulta e a avaliação clínica de um médico, psicólogo ou qualquer outro profissional de saúde habilitado.
@@ -438,9 +444,9 @@ def _gerar_pdf_via_pandoc(markdown: str) -> bytes:
                 "-V",
                 "colorlinks:true",
                 "-V",
-                "linkcolor:1e3a8a",
+                "linkcolor:picmedblue",
                 "-V",
-                "urlcolor:1e3a8a",
+                "urlcolor:picmedblue",
             ]
 
             proc = subprocess.run(cmd, capture_output=True, text=True, check=False)

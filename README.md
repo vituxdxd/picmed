@@ -77,6 +77,8 @@ winget install --id MiKTeX.MiKTeX -e
 pip install -r requirements.txt
 ```
 
+**Windows (PDF):** após instalar, rode as atualizações do MiKTeX (MiKTeX Console → *Updates* → *Check for updates*, ou `mpm --update-db` e `mpm --update`). Reinicie o terminal para atualizar o PATH e confirme `pandoc --version` e `xelatex --version`. Se solicitado, habilite a instalação automática de pacotes no MiKTeX.
+
 ### 3. Execução
 ```bash
 python3 app.py
