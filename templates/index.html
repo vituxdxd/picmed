@@ -207,7 +207,7 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
       <div style="margin-top:0.8rem;">
         <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text-mute);margin-bottom:0.3rem;">
           <span id="lblAmostras">0 amostras</span>
-          <span id="lblTempo" style="font-weight:600;color:var(--primary);">⏱ 05:00</span>
+          <span id="lblTempo" style="font-weight:600;color:var(--primary);">⏱ 00:00</span>
           <span id="lblProgresso">0%</span>
         </div>
         <div class="progress-bar"><div class="progress-fill" id="barProgresso" style="width:0%"></div></div>
@@ -808,6 +808,7 @@ const pssAnswers = Array(10).fill(-1);
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initECGChart();
+  resetLeituraData();
   initPSS();
   initPSQI();
   carregarPortas();
@@ -866,6 +867,39 @@ function initECGChart() {
       }
     }
   });
+}
+
+function setProgresso(total, totalAlvo) {
+  const pct = totalAlvo > 0 ? Math.min(100, round2(total / totalAlvo * 100)) : 0;
+  document.getElementById('lblAmostras').textContent = `${total.toLocaleString()} / ${totalAlvo.toLocaleString()} amostras`;
+  document.getElementById('lblProgresso').textContent = `${pct}%`;
+  document.getElementById('barProgresso').style.width = `${pct}%`;
+}
+
+function resetLeituraData(resetTimer = true) {
+  if (ecgChart) {
+    ecgChart.data.labels = [];
+    ecgChart.data.datasets[0].data = [];
+    ecgChart.update('none');
+  }
+  bpmBuffer.length = 0;
+  bpmValue = null;
+  lastPeakIdx = -1;
+  document.getElementById('statBPM').textContent = '—';
+  document.getElementById('statBPM').style.color = 'var(--red)';
+  document.getElementById('rawData').textContent = '';
+  const duracaoAtual = parseInt(document.getElementById('inpDuracao').value) || duracaoSeg || 300;
+  setProgresso(0, duracaoAtual * 250);
+  if (resetTimer) document.getElementById('lblTempo').textContent = '⏱ 00:00';
+}
+
+function stopLeituraUI() {
+  lendo = false;
+  leituraInicio = null;
+  const btn = document.getElementById('btnLeitura');
+  btn.textContent = '▶ Iniciar Leitura';
+  btn.className = 'btn btn-teal';
+  resetLeituraData(true);
 }
 
 function addECGData(samples) {
@@ -947,7 +981,7 @@ function startSSE() {
   evtSource.onmessage = (e) => {
     try {
       const samples = JSON.parse(e.data);
-      if (samples.length > 0) addECGData(samples);
+      if (lendo && samples.length > 0) addECGData(samples);
     } catch(err) {}
   };
   evtSource.onerror = () => { stopSSE(); setTimeout(startSSE, 2000); };
@@ -1019,14 +1053,11 @@ async function toggleConexao() {
     btn.disabled = false;
   } else {
     await api('/api/desconectar', 'POST');
-    conectado = false; lendo = false;
+    conectado = false;
     btn.textContent = 'Conectar'; btn.className = 'btn btn-primary';
     document.getElementById('btnLeitura').disabled = true;
-    document.getElementById('btnLeitura').textContent = '▶ Iniciar Leitura';
-    document.getElementById('btnLeitura').className = 'btn btn-teal';
+    stopLeituraUI();
     stopSSE();
-    document.getElementById('statBPM').textContent = '—';
-    bpmValue = null;
     toast('Desconectado');
   }
 }
@@ -1042,24 +1073,22 @@ async function toggleLeitura() {
       duracao_seg: duracaoSeg
     });
     if (r.ok) {
+      resetLeituraData(false);
       lendo = true;
       leituraInicio = Date.now();
-      bpmBuffer.length = 0; bpmValue = null;
-      document.getElementById('statBPM').textContent = '—';
       btn.textContent = '⏹ Parar Leitura'; btn.className = 'btn btn-red';
-      document.getElementById('rawData').textContent = '';
+      setProgresso(0, totalAlvo);
       // Formata tempo inicial
       const m = Math.floor(duracaoSeg/60), s = duracaoSeg%60;
       document.getElementById('lblTempo').textContent = `⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
       toast(`Leitura iniciada (${duracaoSeg}s)`);
-    } else { toast(r.erro || 'Erro', 'err'); }
+    } else {
+      resetLeituraData(true);
+      toast(r.erro || 'Erro', 'err');
+    }
   } else {
     await api('/api/leitura/parar', 'POST');
-    lendo = false;
-    leituraInicio = null;
-    btn.textContent = '▶ Iniciar Leitura'; btn.className = 'btn btn-teal';
-    document.getElementById('statBPM').textContent = '—';
-    bpmValue = null;
+    stopLeituraUI();
     toast('Leitura encerrada');
   }
 }
@@ -1095,12 +1124,11 @@ async function pollStatus() {
     document.getElementById('statPorta').textContent = s.porta || '—';
 
     // Progress
-    const total = s.total_amostras || 0;
-    const totalAlvo = duracaoSeg * 250;
-    const pct = totalAlvo > 0 ? Math.min(100, round2(total / totalAlvo * 100)) : 0;
-    document.getElementById('lblAmostras').textContent = `${total.toLocaleString()} / ${totalAlvo.toLocaleString()} amostras`;
-    document.getElementById('lblProgresso').textContent = `${pct}%`;
-    document.getElementById('barProgresso').style.width = `${pct}%`;
+    const sessaoAtiva = !!s.sessao_ativa;
+    if (sessaoAtiva && s.duracao_seg) duracaoSeg = s.duracao_seg;
+    const total = sessaoAtiva ? (s.total_amostras || 0) : 0;
+    const totalAlvo = sessaoAtiva ? (s.total_alvo || duracaoSeg * 250) : (duracaoSeg * 250);
+    setProgresso(total, totalAlvo);
 
     // [NOVO] Countdown timer
     if (leituraInicio && lendo) {
@@ -1130,16 +1158,14 @@ async function pollStatus() {
     document.getElementById('btnLeitura').disabled = !conectado;
 
     // Sync reading state
-    if (estado === 'LENDO_ECG' || estado === 'LENDO_DESCONECTADO' || estado === 'ELETRODO_OFF') {
+    const lendoAgora = (estado === 'LENDO_ECG' || estado === 'LENDO_DESCONECTADO' || estado === 'ELETRODO_OFF');
+    const erroHardware = (estado === 'ERRO_ADS1115' || estado === 'ERRO_AD8232');
+    if (lendoAgora && !erroHardware) {
       if (!lendo) { lendo = true; leituraInicio = leituraInicio || Date.now(); }
       document.getElementById('btnLeitura').textContent = '⏹ Parar Leitura';
       document.getElementById('btnLeitura').className = 'btn btn-red';
-    } else if (estado === 'CONECTADO_IDLE' || estado === 'DESCONECTADO') {
-      if (lendo) { lendo = false; leituraInicio = null; }
-      document.getElementById('btnLeitura').textContent = '▶ Iniciar Leitura';
-      document.getElementById('btnLeitura').className = 'btn btn-teal';
-      document.getElementById('statBPM').textContent = '—';
-      bpmValue = null;
+    } else if (estado === 'CONECTADO_IDLE' || estado === 'DESCONECTADO' || erroHardware) {
+      stopLeituraUI();
     }
   } catch(e) {}
 }
@@ -1789,6 +1815,7 @@ async function excluirSessao(idSessao, codigo='') {
     }
 
     document.getElementById('resultArea').style.display = 'none';
+    stopLeituraUI();
     toast(`Sessão #${r.id_sessao} removida (${r.total_amostras} amostras apagadas)`);
     await Promise.all([
       carregarSessoes(),
