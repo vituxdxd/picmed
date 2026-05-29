@@ -83,10 +83,18 @@ pip install -r requirements.txt
 O projeto suporta execução nativa no Android via **Termux** com acesso direto ao hardware via USB OTG. Esta branch foi otimizada para este ambiente, incluindo drivers customizados para comunicação serial.
 
 #### 1. Instalação do Ambiente
-No Termux, instale as dependências de sistema:
+No Termux, instale as dependências de sistema (incluindo as necessárias para geração de PDF e processamento de sinal):
 ```bash
 pkg update
-pkg install python termux-api libusb clang make libandroid-pty-dev
+pkg install python termux-api libusb clang make libandroid-pty-dev \
+            pandoc texlive-bin libjpeg-turbo libpng freetype
+```
+
+**Importante (PDF no Termux):** Após instalar o `texlive-bin`, é necessário gerar os formatos do LaTeX manualmente para evitar o erro `I can't find the format file 'xelatex.fmt'`:
+```bash
+fmtutil-sys --byfmt xelatex
+# Recomendado gerar todos os formatos para evitar outros erros:
+fmtutil-sys --all
 ```
 
 Compile o driver serial customizado (necessário para criar a ponte PTY):
