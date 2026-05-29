@@ -178,11 +178,22 @@ body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',syst
     </div>
     <div style="display:flex;gap:0.8rem;align-items:flex-end;flex-wrap:wrap;">
       <div class="form-group" style="flex:1;min-width:200px;margin:0;">
-        <label class="form-label">Porta</label>
-        <select class="form-select" id="selPorta"><option value="">Selecione...</option></select>
+        <label class="form-label">Porta Serial</label>
+        <select class="form-select" id="selPorta" onchange="verificarPortaManual()">
+          <option value="">Selecione...</option>
+        </select>
+      </div>
+      <div class="form-group" id="groupPortaManual" style="display:none; flex:1; min-width:200px; margin:0;">
+        <label class="form-label">Caminho Manual</label>
+        <input type="text" class="form-input" id="inpPortaManual" placeholder="ex: /dev/ttyUSB0">
       </div>
       <button class="btn btn-outline btn-sm" onclick="carregarPortas()" style="margin-bottom:1px;">↻ Atualizar</button>
       <button class="btn btn-primary" id="btnConectar" onclick="toggleConexao()">Conectar</button>
+    </div>
+    <div id="termuxTip" style="margin-top:0.8rem; font-size:0.75rem; color:var(--text-dim); background:var(--bg-hover); padding:0.6rem; border-radius:var(--radius-sm); border-left:3px solid var(--amber); display:none;">
+      <strong>Dica Termux (Poco F7):</strong> Se a porta não aparecer ou der erro de permissão, tente: 
+      <code style="background:#eee; padding:2px 4px; border-radius:3px;">su -c "chmod 666 /dev/ttyUSB0"</code> 
+      ou use o comando <code style="background:#eee; padding:2px 4px; border-radius:3px;">tsu</code> antes de iniciar o servidor.
     </div>
   </div>
 
@@ -1025,20 +1036,50 @@ async function api(url, method='GET', body=null) {
   return await r.json();
 }
 
+function verificarPortaManual() {
+  const sel = document.getElementById('selPorta');
+  const group = document.getElementById('groupPortaManual');
+  const tip = document.getElementById('termuxTip');
+  
+  if (sel.value === 'MANUAL' || (sel.options.length <= 2 && sel.value !== "")) {
+    group.style.display = 'block';
+  } else {
+    group.style.display = 'none';
+  }
+  
+  // Mostra dica do Termux se estiver no Android/Termux
+  if (navigator.userAgent.includes("Android")) {
+    tip.style.display = 'block';
+  }
+}
+
 async function carregarPortas() {
   const portas = await api('/api/portas');
   const sel = document.getElementById('selPorta');
   sel.innerHTML = '<option value="">Selecione...</option>';
+  
   portas.forEach(p => {
     sel.innerHTML += `<option value="${p.porta}">${p.porta} — ${p.descricao}</option>`;
   });
+  
+  sel.innerHTML += '<option value="MANUAL">Outra (Digitar caminho...)</option>';
+  
+  // No Termux, se houver poucas portas, mostra a dica
+  if (navigator.userAgent.includes("Android")) {
+    document.getElementById('termuxTip').style.display = 'block';
+  }
 }
 
 async function toggleConexao() {
   const btn = document.getElementById('btnConectar');
   if (!conectado) {
-    const porta = document.getElementById('selPorta').value;
-    if (!porta) return toast('Selecione uma porta serial', 'err');
+    let porta = document.getElementById('selPorta').value;
+    if (porta === 'MANUAL') {
+      porta = document.getElementById('inpPortaManual').value.trim();
+    }
+    
+    if (!porta) return toast('Selecione ou digite uma porta serial', 'err');
+    
     btn.disabled = true; btn.textContent = 'Conectando...';
     const r = await api('/api/conectar', 'POST', { porta });
     if (r.ok) {

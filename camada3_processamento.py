@@ -6,7 +6,12 @@
 # =============================================================================
 
 import numpy as np
-import neurokit2 as nk
+try:
+    import neurokit2 as nk
+    _HAS_NEUROKIT = True
+except ImportError:
+    nk = None
+    _HAS_NEUROKIT = False
 from typing import Optional
 
  
@@ -174,11 +179,39 @@ def _extrair_rr_validos_neurokit(
     rr_min_s: float,
     rr_max_s: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Extrai picos R e intervalos R-R válidos com NeuroKit2 em uma única polaridade."""
-    sinal_limpo = nk.ecg_clean(sinal, sampling_rate=fs, method="neurokit")
-    _, info = nk.ecg_peaks(sinal_limpo, sampling_rate=fs, method="neurokit")
+    """Extrai picos R e intervalos R-R válidos com NeuroKit2 ou fallback manual."""
+    if _HAS_NEUROKIT:
+        try:
+            sinal_limpo = nk.ecg_clean(sinal, sampling_rate=fs, method="neurokit")
+            _, info = nk.ecg_peaks(sinal_limpo, sampling_rate=fs, method="neurokit")
+            picos_r = np.asarray(info.get("ECG_R_Peaks", []), dtype=int)
+        except Exception:
+            # Se NeuroKit falhar por algum motivo interno (ex: sinal muito curto)
+            picos_r = np.array([], dtype=int)
+    else:
+        # Fallback simples: Detecção por limiar dinâmico + derivativa
+        # Útil para Android/Termux onde NeuroKit2/Scipy podem ser difíceis de instalar.
+        if sinal.size < 2:
+            return np.array([], dtype=int), np.array([], dtype=float), np.array([], dtype=float)
+        
+        # 1. Diferenciação para realçar picos R (altas frequências)
+        diff = np.diff(sinal)
+        # 2. Elevação ao quadrado para positivar e destacar picos
+        squared = diff ** 2
+        # 3. Limiar simples (média + 3 desvios)
+        limiar = np.mean(squared) + 3 * np.std(squared)
+        
+        picos_r = []
+        min_dist = int(rr_min_s * fs)
+        ultimo_pico = -min_dist
+        
+        for i in range(1, len(squared) - 1):
+            if squared[i] > limiar and squared[i] > squared[i-1] and squared[i] > squared[i+1]:
+                if i - ultimo_pico >= min_dist:
+                    picos_r.append(i)
+                    ultimo_pico = i
+        picos_r = np.array(picos_r, dtype=int)
 
-    picos_r = np.asarray(info.get("ECG_R_Peaks", []), dtype=int)
     rr_s = np.diff(picos_r) / fs if picos_r.size >= 2 else np.array([], dtype=float)
     mascara = (rr_s >= rr_min_s) & (rr_s <= rr_max_s)
     rr_validos = rr_s[mascara]

@@ -47,8 +47,67 @@ import threading
 import queue
 import time
 import struct
+import os
+import errno
+import termios
 import serial
-import serial.tools.list_ports
+try:
+    import serial.tools.list_ports
+    _HAS_LIST_PORTS = True
+except ImportError:
+    _HAS_LIST_PORTS = False
+
+
+# ─── Fix para Termux/Android ──────────────────────────────────────────────────
+class SafeSerial(serial.Serial):
+    """
+    Subclasse de serial.Serial que ignora erro de permissão (EACCES) ao tentar
+    atualizar o estado de DTR/RTS ou realizar flush/drain. Isso é necessário
+    no Termux/Android ao utilizar pontes TCP/PTY.
+    """
+    def _ignore_access_denied(self, e):
+        # termios.error não tem .errno, mas tem o código em .args[0]
+        err = getattr(e, 'errno', None)
+        if err is None and hasattr(e, 'args') and len(e.args) > 0:
+            err = e.args[0]
+        if err == errno.EACCES:
+            return True
+        return False
+
+    def _update_dtr_state(self):
+        try:
+            super()._update_dtr_state()
+        except (OSError, IOError, termios.error) as e:
+            if not self._ignore_access_denied(e):
+                raise
+
+    def _update_rts_state(self):
+        try:
+            super()._update_rts_state()
+        except (OSError, IOError, termios.error) as e:
+            if not self._ignore_access_denied(e):
+                raise
+
+    def flush(self):
+        try:
+            super().flush()
+        except (OSError, IOError, termios.error) as e:
+            if not self._ignore_access_denied(e):
+                raise
+
+    def reset_input_buffer(self):
+        try:
+            super().reset_input_buffer()
+        except (OSError, IOError, termios.error) as e:
+            if not self._ignore_access_denied(e):
+                raise
+
+    def reset_output_buffer(self):
+        try:
+            super().reset_output_buffer()
+        except (OSError, IOError, termios.error) as e:
+            if not self._ignore_access_denied(e):
+                raise
 from collections import deque
 from dataclasses import dataclass
 from typing import Optional, List, Tuple
@@ -161,12 +220,70 @@ def _parsear_csv(linha: str) -> Optional[Tuple[int, bool]]:
 
 # ─── Utilitários ──────────────────────────────────────────────────────────────
 def listar_portas() -> list[dict]:
-    return [
-        {"porta":    p.device,
-         "descricao": p.description or "Porta Serial",
-         "vid_pid":  f"{p.vid}:{p.pid}" if p.vid else "—"}
-        for p in serial.tools.list_ports.comports()
+    # 1. Tenta listar via pyserial (padrão)
+    portas = []
+    if _HAS_LIST_PORTS:
+        try:
+            portas = [
+                {"porta":    p.device,
+                 "descricao": p.description or "Porta Serial",
+                 "vid_pid":  f"{p.vid}:{p.pid}" if p.vid else "—"}
+                for p in serial.tools.list_ports.comports()
+            ]
+        except Exception as e:
+            # Em alguns sistemas (Android), comports() pode falhar mesmo se o import funcionou
+            pass
+
+    # 2. Fallback para Android/Termux: checar caminhos comuns manualmente
+    # No Termux (com root ou permissões), os dispositivos OTG aparecem aqui.
+    caminhos_comuns = [
+        os.path.expanduser('~/ttyesp32'), # Ponte Virtual (Recomendada)
+        '/dev/ttyUSB0', '/dev/ttyUSB1',
+        '/dev/ttyACM0', '/dev/ttyACM1',
+        '/dev/ttyHS0',  '/dev/ttyHS1',  # Alguns Androids usam High Speed UART
+        '/dev/rfcomm0'                  # Bluetooth Serial
     ]
+
+    # [v3.5] Adiciona PTYs dinâmicos do Termux (/dev/pts/1, etc)
+    for i in range(10):
+        caminhos_comuns.append(f'/dev/pts/{i}')
+
+    portas_encontradas = [p['porta'] for p in portas]
+
+    for path in caminhos_comuns:
+        if path not in portas_encontradas:
+            try:
+                if os.path.exists(path):
+                    # Tenta ver se temos permissão de leitura (sem abrir de fato)
+                    descricao = "Dispositivo Serial"
+                    if path == os.path.expanduser('~/ttyesp32'):
+                        descricao = "Ponte Virtual (Recomendada)"
+                    elif path.startswith('/dev/pts/'):
+                        descricao = f"Terminal Virtual ({path})"
+
+                    if not os.access(path, os.R_OK):
+                        descricao += " (Sem Permissão)"
+                    portas.append({
+                        "porta": path,
+                        "descricao": descricao,
+                        "vid_pid": "—"
+                    })
+            except:
+                pass
+
+    # 3. Garante que caminhos importantes apareçam como sugestão mesmo que não detectados
+    v_path = os.path.expanduser('~/ttyesp32')
+    if not any(p['porta'] == v_path for p in portas):
+        descricao = "Ponte Virtual (Recomendada)"
+        if not os.path.exists(v_path):
+            descricao += " — Não detectada"
+        portas.append({"porta": v_path, "descricao": descricao, "vid_pid": "—"})
+
+    if not any(p['porta'].startswith('/dev/ttyUSB') for p in portas):
+        if not any(p['porta'] == '/dev/ttyUSB0' for p in portas):
+            portas.append({"porta": "/dev/ttyUSB0", "descricao": "Entrada Manual (ex: /dev/ttyUSB0)", "vid_pid": "—"})
+
+    return portas
 
 
 def _enviar_comando(cmd: str):
@@ -241,7 +358,7 @@ def _loop_leitura(porta: str, baud: int):
     idx = 0
 
     try:
-        ser = serial.Serial(porta, baud, timeout=0.5)
+        ser = SafeSerial(porta, baud, timeout=0.5)
         _serial_conn     = ser
         status.conectado = True
         status.porta     = porta
@@ -279,6 +396,10 @@ def _loop_leitura(porta: str, baud: int):
             if waiting > 0:
                 chunk = ser.read(min(waiting, 4096))
                 byte_buffer.extend(chunk)
+                # [v3.5] Loga se recebermos algo pela primeira vez
+                if not hasattr(_loop_leitura, "_recebeu_algo"):
+                    _debug(f"Primeiros dados recebidos: {len(chunk)} bytes")
+                    _loop_leitura._recebeu_algo = True
             elif len(byte_buffer) == 0:
                 # Só dorme se não há dados novos E buffer está vazio.
                 time.sleep(0.002)
@@ -305,12 +426,12 @@ def _loop_leitura(porta: str, baud: int):
                         status.amostras_perdidas += 1
                         if protocolo_detectado is None:
                             protocolo_detectado = "BIN"
-                            _debug("Protocolo detectado: BINÁRIO (checksum falhou neste pacote)")
+                            _debug("Protocolo detectado: BINÁRIO (checksum falhou!)")
                         continue
 
                     if protocolo_detectado is None:
                         protocolo_detectado = "BIN"
-                        _debug("Protocolo detectado: BINÁRIO (250 Hz direto)")
+                        _debug("Protocolo detectado: BINÁRIO (250 Hz OK)")
 
                     leads_on = bool(flags_seq & 0x80)
                     adc_raw  = struct.unpack('>h', bytes([adc_hi, adc_lo]))[0]

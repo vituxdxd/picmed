@@ -1,0 +1,5 @@
+.svn
+.private
+*.swp
+*.swo
+.o

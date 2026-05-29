@@ -18,7 +18,12 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import neurokit2 as nk
+try:
+    import neurokit2 as nk
+    _HAS_NEUROKIT = True
+except ImportError:
+    nk = None
+    _HAS_NEUROKIT = False
 import numpy as np
 
 import camada3_processamento as processamento
@@ -86,9 +91,13 @@ Não foi possível gerar o gráfico do ECG porque o trecho válido é curto dema
     trecho_plot = trecho_orientado / 1000.0
     tempo = np.arange(trecho.size) / fs
 
-    sinal_limpo = nk.ecg_clean(trecho_orientado, sampling_rate=fs, method="neurokit")
-    _, info = nk.ecg_peaks(sinal_limpo, sampling_rate=fs, method="neurokit")
-    picos_r = np.asarray(info.get("ECG_R_Peaks", []), dtype=int)
+    # Usa a função de extração da camada 3 (que possui fallback para quando o NeuroKit2 não está disponível)
+    picos_r, _, _ = processamento._extrair_rr_validos_neurokit(
+        sinal=trecho_orientado,
+        fs=fs,
+        rr_min_s=0.30,
+        rr_max_s=2.00,
+    )
 
     rr_pairs: list[tuple[int, int, float]] = []
     if picos_r.size >= 2:

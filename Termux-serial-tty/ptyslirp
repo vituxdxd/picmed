@@ -1,0 +1,7 @@
+#!/bin/bash
+if (termux-usb -r /dev/bus/usb/001/002)
+then
+termux-wake-lock
+termux-usb -e './ptyserial slirp' /dev/bus/usb/001/002 
+termux-wake-unlock
+fi
