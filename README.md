@@ -80,37 +80,61 @@ pip install -r requirements.txt
 **Windows (PDF):** após instalar, rode as atualizações do MiKTeX (MiKTeX Console → *Updates* → *Check for updates*, ou `mpm --update-db` e `mpm --update`). Reinicie o terminal para atualizar o PATH e confirme `pandoc --version` e `xelatex --version`. Se solicitado, habilite a instalação automática de pacotes no MiKTeX.
 
 ### 4. Execução no Termux (Android)
-O projeto suporta execução nativa no Android via **Termux** com acesso direto ao hardware via USB OTG. Para um guia detalhado passo a passo, consulte o arquivo [GUIA_OPERACAO.md](GUIA_OPERACAO.md).
+O projeto suporta execução nativa no Android via **Termux** com acesso direto ao hardware via USB OTG. Esta branch foi otimizada para este ambiente, incluindo drivers customizados para comunicação serial.
 
-1. **Instalação do Ambiente:**
-   No Termux, instale as dependências necessárias:
+#### 1. Instalação do Ambiente
+No Termux, instale as dependências de sistema:
+```bash
+pkg update
+pkg install python termux-api libusb clang make libandroid-pty-dev
+```
+
+Compile o driver serial customizado (necessário para criar a ponte PTY):
+```bash
+cd Termux-serial-tty && make all ptyserial
+cd ..
+```
+
+Configure o ambiente virtual Python:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+#### 2. Preparação do Hardware e Permissões
+1. Conecte o ESP32 ao smartphone via cabo **USB OTG**.
+2. Identifique o caminho do dispositivo USB:
    ```bash
-   pkg update
-   pkg install python termux-api libusb clang make libandroid-pty-dev
-   # Note: A biblioteca libusbuart customizada deve ser compilada localmente
-   cd Termux-serial-tty && make all ptyserial
+   termux-usb -l
+   ```
+   *(Exemplo de saída: `/dev/bus/usb/001/002`)*
+3. Solicite permissão de acesso (confirme o pop-up que aparecerá no Android):
+   ```bash
+   termux-usb -r /dev/bus/usb/001/002
    ```
 
-2. **Configuração do Acesso USB (Nativo ✅):**
-   Conecte o ESP32 via cabo OTG e siga os passos:
-   1. Liste os dispositivos conectados: `termux-usb -l`
-   2. Solicite permissão de acesso (confirme o pop-up no Android): `termux-usb -r /caminho/do/dispositivo`
-   3. Inicie a ponte serial: `./run_bridge.sh /caminho/do/dispositivo`
-   4. A aplicação utilizará a porta virtual `~/ttyesp32`.
+#### 3. Iniciando a Ponte Serial (Bridge)
+A ponte é necessária para que o Python acesse o USB via um terminal virtual (PTY). **Mantenha este comando rodando em uma sessão do Termux:**
+```bash
+termux-usb -e ./run_bridge.sh /dev/bus/usb/001/002
+```
+*   O script criará um link em `~/ttyesp32`.
+*   A ponte foi modificada para desativar RTS/DTR, evitando que o ESP32 reinicie ao conectar.
 
-   *Nota: A ponte serial foi modificada para desativar o controle de fluxo (RTS/DTR), evitando resets indesejados no ESP32.*
+#### 4. Iniciar a Aplicação
+Em uma **nova sessão/aba** do Termux:
+```bash
+source .venv/bin/activate
+python app.py
+```
+Acesse no navegador do Android: `http://localhost:5000`
 
-3. **Opção Alternativa (TCP UART Bridge):**
-   Caso prefira usar um app externo (como o *TCPUART*):
-   1. Configure o app como **Server**, porta **2323**, e dê permissão USB ao app.
-   2. No Termux, execute: `./run_tcp_bridge.sh`
-   3. No sistema PicMed, selecione a porta `~/ttyesp32`.
+---
 
-4. **Iniciar a Aplicação:**
-   ```bash
-   python3 app.py
-   ```
-   Acesse no navegador do Android: `http://localhost:5000`
+**Nota sobre a Porta Serial na Interface:**
+Ao abrir a interface web, certifique-se de que o campo "Porta Serial" aponta para o link criado pela ponte:
+`/data/data/com.termux/files/home/ttyesp32` (ou apenas `~/ttyesp32` se o sistema aceitar a expansão).
 
 ## 📊 Funcionalidades da Interface
 
