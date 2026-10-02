@@ -13,6 +13,7 @@
 # =============================================================================
 
 import json
+import os
 import time
 import threading
 import statistics
@@ -724,4 +725,6 @@ if __name__ == "__main__":
     print(f"  Local:  http://localhost:5000")
     print(f"  Rede:   http://{host_ip}:5000")
     print("=" * 60)
-    app.run(host="0.0.0.0", debug=True, use_reloader=False, threaded=True, port=5000)
+    debug = os.environ.get("PICMED_DEBUG", "0") == "1"
+    host = os.environ.get("PICMED_HOST", "0.0.0.0")
+    app.run(host=host, debug=debug, use_reloader=False, threaded=True, port=5000)

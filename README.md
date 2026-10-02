@@ -85,6 +85,8 @@ python3 app.py
 ```
 Acesse a interface no navegador através de: `http://localhost:5000`
 
+> ⚠️ **Segurança:** esta aplicação **não possui autenticação** e foi projetada para uso em **rede local confiável**. Não a exponha diretamente à internet (use VPN ou um reverse proxy com autenticação). O modo debug do Flask fica desligado por padrão; para habilitar em desenvolvimento, use `PICMED_DEBUG=1` (e `PICMED_HOST` para mudar o endereço de escuta).
+
 ## 📊 Funcionalidades da Interface
 
 *   **Aquisição:** Monitoramento em tempo real do sinal ECG e estimativa de BPM.
