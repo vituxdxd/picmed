@@ -241,7 +241,7 @@ title: "Identificando estresse oculto por meio da variabilidade da frequência c
 subtitle: "Relatório individual de variabilidade da frequência cardíaca e questionários"
 author: "PICMED UNICEPLAC"
 date: "{date.today().isoformat()}"
-lang: "pt-BR"
+toc-title: "Sumário"
 titlepage: true
 titlepage-color: "picmedblue"
 titlepage-text-color: "white"
@@ -382,6 +382,8 @@ def _instrucao_pandoc() -> str:
         )
     if sistema == "darwin":
         return "Instale com: brew install pandoc"
+    if shutil.which("pacman"):
+        return "Instale com: sudo pacman -S pandoc-cli"
     return "Instale com: sudo apt-get update && sudo apt-get install -y pandoc"
 
 
@@ -394,6 +396,8 @@ def _instrucao_xelatex() -> str:
         )
     if sistema == "darwin":
         return "Instale com: brew install --cask mactex-no-gui"
+    if shutil.which("pacman"):
+        return "Instale com: sudo pacman -S texlive-xetex texlive-latexrecommended texlive-fontsrecommended"
     return "Instale com: sudo apt-get update && sudo apt-get install -y texlive-xetex"
 
 
