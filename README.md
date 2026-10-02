@@ -59,8 +59,8 @@ O sistema utiliza os seguintes componentes:
 ### 2. Configuração do Ambiente Python
 ```bash
 # Clone o repositório
-git clone git@github.com:osnicavalcanti/picmed.git
-cd picmed-main
+git clone https://github.com/vituxdxd/picmed.git
+cd picmed
 
 # Crie um ambiente virtual
 python3 -m venv .venv
