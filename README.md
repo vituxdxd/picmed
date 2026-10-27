@@ -146,4 +146,10 @@ As métricas e classificações apresentadas pelo software precisam ser avaliada
 
 ## Uso e licença
 
-O projeto é destinado ao uso acadêmico e institucional. O repositório ainda não contém um arquivo de licença que defina as condições de reutilização e distribuição do código.
+O código Python, o código da interface web e o firmware são disponibilizados sob a [PolyForm Noncommercial License 1.0.0](LICENSE). A licença permite uso, estudo, modificação e redistribuição para as finalidades previstas em seus termos, com restrição ao uso comercial e permissões expressas para instituições de ensino, pesquisa e outras organizações nela especificadas.
+
+Os textos da documentação, as fotografias e os esquemas são disponibilizados sob [CC BY-NC-SA 4.0](LICENSE-DOCUMENTATION.md): podem ser compartilhados e adaptados para fins não comerciais, com atribuição de autoria e distribuição das adaptações sob a mesma licença.
+
+A venda de cópias do software, firmware ou documentação e sua exploração comercial não estão autorizadas pelas permissões gerais de uso não comercial. Qualquer uso fora das permissões das licenças exige autorização prévia dos respectivos titulares. Dependências e materiais de terceiros mantêm suas próprias licenças.
+
+Por conter restrições comerciais, o software é disponibilizado como **código disponível para uso não comercial (source-available)**. Consulte o [escopo e os limites do licenciamento](docs/licenciamento.md), incluindo sua aplicação ao hardware.
