@@ -1,103 +1,149 @@
-# PICMED UNICEPLAC — Sistema de Coleta ECG/VFC
+# PICMED UNICEPLAC
 
-Sistema integrado de hardware e software para aquisição, processamento e análise de sinais de Eletrocardiograma (ECG) e Variabilidade da Frequência Cardíaca (VFC/HRV), com foco na identificação de estresse oculto através do **Índice de Baevsky**.
+Sistema experimental de aquisição de eletrocardiograma (ECG) e análise de variabilidade da frequência cardíaca (VFC), desenvolvido para apoiar pesquisas no UNICEPLAC. O projeto reúne uma placa com ESP32, AD8232 e ADS1115 e uma aplicação Python com interface web, armazenamento local e geração de relatórios.
 
-## 🚀 Visão Geral
+A proposta é manter o acesso às amostras brutas de ECG para permitir a revisão do sinal e a análise dos intervalos entre batimentos. O software calcula SDNN, RMSSD, pNN50 e o Índice de Estresse de Baevsky (SI), além de reunir questionários utilizados no estudo sobre estresse em acadêmicos de medicina.
 
-O projeto foi desenvolvido para apoiar pesquisas clínicas no UNICEPLAC, permitindo a coleta de dados fisiológicos de participantes de forma simplificada e automatizada. O sistema é composto por um firmware customizado para ESP32 e uma aplicação Python multi-camadas que gerencia desde a recepção serial até a análise estatística avançada.
+![Vista superior do protótipo, com ESP32 à esquerda, ADS1115 na parte superior e AD8232 à direita](docs/images/hardware-vista-superior.jpg)
 
-## 🛠️ Arquitetura do Sistema
+*Placa de montagem do protótipo. Fotografia dos autores, extraída do relato de desenvolvimento do projeto.*
 
-O projeto é estruturado em 4 camadas principais:
+## O que o sistema faz
 
-1.  **Camada 1: Aquisição (`camada1_aquisicao.py`)**
-    *   Gerencia a comunicação serial com o hardware (ESP32).
-    *   Suporta protocolos binários de alta performance e fallback em CSV.
-    *   Implementa sistema de *fan-out* (Broadcaster) para distribuição de dados em tempo real.
+- Exibe o ECG e uma estimativa de frequência cardíaca durante a aquisição.
+- Cadastra participantes por código e organiza as coletas em sessões.
+- Armazena amostras brutas, questionários e resultados em SQLite.
+- Processa o ECG com NeuroKit2 e calcula as métricas de VFC.
+- Aplica PSS-10, IPAQ, PSQI e as versões reduzidas STAI-S-6 e STAI-T-6.
+- Gera relatórios em PDF com os resultados e um trecho do sinal adquirido.
 
-2.  **Camada 2: Armazenamento (`camada2_banco.py`)**
-    *   Persistência em banco de dados SQLite (`estudo_picmed.db`).
-    *   Gerenciamento completo de Participantes, Sessões, Amostras Brutas e Métricas.
-    *   Otimizado com *Write-Ahead Logging* (WAL) e inserções em lote para alta vazão.
+Esta versão utiliza uma interface web servida pelo Flask. A comunicação com a placa ocorre pela porta USB serial do computador que executa a aplicação.
 
-3.  **Camada 3: Processamento (`camada3_processamento.py`)**
-    *   Extração de intervalos R-R e picos R utilizando a biblioteca **NeuroKit2**.
-    *   Cálculo de métricas temporais: SDNN, RMSSD, pNN50.
-    *   Implementação do **Índice de Estresse de Baevsky (SI)** com interpretação clínica automática.
+## Hardware
 
-4.  **Camada 4: Servidor e Interface (`app.py`)**
-    *   API REST em Flask para controle do sistema.
-    *   Streaming de ECG em tempo real via *Server-Sent Events* (SSE).
-    *   Interface web para monitoramento, aplicação de questionários (PSS-10, IPAQ, PSQI e STAI) e emissão de relatório PDF.
+| Componente | Função |
+|---|---|
+| ESP32 | Controla a aquisição e transmite as amostras por USB serial. |
+| AD8232 | Condiciona o sinal dos eletrodos e informa sua desconexão. |
+| ADS1115 | Digitaliza o sinal com resolução nominal de 16 bits, configurado para 250 amostras por segundo. |
+| Filtros analógicos externos | Integram a montagem documentada, com notch Twin-T e passa-baixa. |
 
-## 🔌 Hardware
+O ADS1115 comunica-se com o ESP32 por I2C. A transmissão para o computador utiliza pacotes binários de cinco bytes a 115200 baud.
 
-O sistema utiliza os seguintes componentes:
-*   **Microcontrolador:** ESP32 (Foco em processamento e comunicação estável).
-*   **Sensor ECG:** AD8232 (Front-end analógico para ECG).
-*   **Conversor ADC:** ADS1115 (16 bits, configurado para 250 SPS via I2C).
-*   **Interface:** Protocolo binário customizado a 115200 baud.
+Há duas variantes de firmware, com pinagens diferentes para o LED RGB. O esquema do protótipo corresponde aos pinos da variante `firmware_ecg2.ino`. Consulte as [fotos, o esquema e as conexões do hardware](docs/hardware.md) e a [orientação para gravar o firmware](firmware/README.md) antes da montagem.
 
-## 💻 Requisitos de Software
+## Instalação
 
-*   Python 3.10+
-*   Dependências principais:
-    *   `Flask`: Servidor web e API.
-    *   `pyserial`: Comunicação com o hardware.
-    *   `neurokit2`: Processamento de sinais biológicos.
-    *   `numpy`: Cálculos numéricos.
-    *   `matplotlib`: Geração do gráfico do trecho de ECG no relatório.
-    *   `pandoc` + `XeLaTeX` (TeX Live no Linux, MiKTeX no Windows): Geração dos relatórios em PDF via Markdown + XeLaTeX.
-    *   `sqlite3` (stdlib do Python): Armazenamento de dados.
+É necessário ter Python 3.10 ou superior e acesso à porta serial do ESP32. As dependências Python estão em [requirements.txt](requirements.txt); o SQLite faz parte da biblioteca padrão do Python.
 
-## 🚀 Como Executar
+### Preparar o ambiente Python
 
-### 1. Preparação do Hardware
-*   Realize as conexões conforme as definições no arquivo `firmware/firmware.ino`.
-*   Carregue o código no ESP32 utilizando a Arduino IDE ou VS Code (PlatformIO).
-
-### 2. Configuração do Ambiente Python
 ```bash
-# Clone o repositório
 git clone https://github.com/vituxdxd/picmed.git
 cd picmed
-
-# Crie um ambiente virtual
 python3 -m venv .venv
-source .venv/bin/activate  # No Windows: .venv\Scripts\activate
+```
 
-# Dependências de sistema para PDF (Linux)
-sudo apt-get update && sudo apt-get install -y pandoc texlive-xetex
+Ative o ambiente no Linux ou macOS:
 
-# Dependências de sistema para PDF (Windows - PowerShell)
+```bash
+source .venv/bin/activate
+```
+
+No Windows, use o PowerShell. Se o executável instalado se chamar `python`, use esse nome no lugar de `python3` nos comandos anteriores.
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Instale as dependências com o ambiente ativo:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+### Habilitar os relatórios em PDF
+
+A exportação exige Pandoc e XeLaTeX instalados no computador. No Ubuntu ou Debian:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y pandoc texlive-xetex
+```
+
+No Windows:
+
+```powershell
 winget install --id JohnMacFarlane.Pandoc -e
 winget install --id MiKTeX.MiKTeX -e
-
-# Instale as dependências
-pip install -r requirements.txt
 ```
 
-**Windows (PDF):** após instalar, rode as atualizações do MiKTeX (MiKTeX Console → *Updates* → *Check for updates*, ou `mpm --update-db` e `mpm --update`). Reinicie o terminal para atualizar o PATH e confirme `pandoc --version` e `xelatex --version`. Se solicitado, habilite a instalação automática de pacotes no MiKTeX.
+Após instalar o MiKTeX, abra o MiKTeX Console, aplique as atualizações e habilite a instalação de pacotes adicionais quando solicitada. Reinicie o terminal e confira se as ferramentas estão disponíveis:
 
-### 3. Execução
 ```bash
-python3 app.py
+pandoc --version
+xelatex --version
 ```
-Acesse a interface no navegador através de: `http://localhost:5000`
 
-> ⚠️ **Segurança:** esta aplicação **não possui autenticação** e foi projetada para uso em **rede local confiável**. Não a exponha diretamente à internet (use VPN ou um reverse proxy com autenticação). O modo debug do Flask fica desligado por padrão; para habilitar em desenvolvimento, use `PICMED_DEBUG=1` (e `PICMED_HOST` para mudar o endereço de escuta).
+### Iniciar a aplicação
 
-## 📊 Funcionalidades da Interface
+Na raiz do projeto, com o ambiente virtual ativo:
 
-*   **Aquisição:** Monitoramento em tempo real do sinal ECG e estimativa de BPM.
-*   **Participantes:** Cadastro anônimo com controle de ciclo acadêmico.
-*   **Coleta:** Gerenciamento de sessões e persistência em banco local (SQLite).
-*   **Questionários:** Aplicação digital de PSS-10, IPAQ, PSQI e STAI-S-6/STAI-T-6.
-*   **Resultados:** Relatórios em PDF com métricas de VFC, classificações e trecho visual do ECG (Derivação II).
+```bash
+python app.py
+```
 
-## 📝 Licença
+Abra [http://localhost:5000](http://localhost:5000) no navegador. O banco `estudo_picmed.db` é criado no diretório de execução; inicie sempre pela raiz do projeto para utilizar o mesmo arquivo de dados.
 
-Este projeto é de uso acadêmico e institucional.
+## Realizar uma coleta
 
----
-**PICMED UNICEPLAC** — *Inovação em Saúde e Tecnologia.*
+1. Grave o firmware correspondente à montagem e conecte o ESP32 ao computador com um cabo USB de dados.
+2. Na interface, selecione a porta serial e conecte a placa. Feche o monitor serial da Arduino IDE se ele estiver usando a mesma porta.
+3. Cadastre ou selecione o participante e defina a duração da coleta.
+4. Verifique o estado dos eletrodos e acompanhe o traçado antes de iniciar o registro.
+5. Inicie a aquisição e aguarde seu encerramento, ou interrompa pela interface quando necessário.
+6. Preencha os questionários da sessão e solicite o processamento na lista de sessões encerradas.
+7. Consulte os resultados e exporte o PDF, se as dependências de relatório estiverem instaladas.
+
+Mantenha uma cópia de segurança do banco de dados e evite versionar dados de participantes ou registros de coleta.
+
+## Organização do código
+
+| Arquivo ou diretório | Responsabilidade |
+|---|---|
+| [firmware/](firmware/) | Firmware das duas variantes da placa ESP32. |
+| [camada1_aquisicao.py](camada1_aquisicao.py) | Comunicação serial, leitura de pacotes e distribuição das amostras em tempo real. |
+| [camada2_banco.py](camada2_banco.py) | Criação e persistência do banco SQLite, com escrita em lotes e modo WAL. |
+| [camada3_processamento.py](camada3_processamento.py) | Detecção de picos R, intervalos RR, métricas de VFC e escores dos questionários. |
+| [app.py](app.py) | Rotas Flask, controle das sessões e transmissão do ECG por Server-Sent Events (SSE). |
+| [templates/index.html](templates/index.html) | Interface web de aquisição, questionários e resultados. |
+| [gerar_pdf.py](gerar_pdf.py) | Preparação dos gráficos e geração dos relatórios com Pandoc e XeLaTeX. |
+
+## Configuração de acesso
+
+A aplicação não possui autenticação. Por padrão, o Flask escuta em `0.0.0.0:5000`, permitindo acesso pela rede conforme as regras de firewall do computador. Utilize apenas em uma rede local confiável.
+
+Para limitar o acesso ao próprio computador no Linux ou macOS:
+
+```bash
+PICMED_HOST=127.0.0.1 python app.py
+```
+
+No PowerShell:
+
+```powershell
+$env:PICMED_HOST = "127.0.0.1"
+python app.py
+```
+
+O modo de depuração fica desligado por padrão. A variável `PICMED_DEBUG=1` o habilita para desenvolvimento.
+
+## Escopo e limitações
+
+O PICMED é um protótipo de pesquisa. A demonstração preliminar descrita no relato de desenvolvimento não constitui validação clínica nem comparação com um equipamento de referência. O sistema não foi projetado para diagnóstico pela morfologia do ECG.
+
+As métricas e classificações apresentadas pelo software precisam ser avaliadas no contexto do protocolo de pesquisa, da qualidade do sinal e das condições de registro. O Índice de Baevsky, isoladamente, não estabelece um diagnóstico de estresse.
+
+## Uso e licença
+
+O projeto é destinado ao uso acadêmico e institucional. O repositório ainda não contém um arquivo de licença que defina as condições de reutilização e distribuição do código.
